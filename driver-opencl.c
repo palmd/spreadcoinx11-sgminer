@@ -264,8 +264,11 @@ char *set_kernel(char *arg)
 	enum cl_kernels kern;
 	int i, device = 0;
 	char *nextptr;
+	char arg_arr[255];
 
-	nextptr = strtok(arg, ",");
+	strncpy(arg_arr, arg, 255);
+
+	nextptr = strtok(arg_arr, ",");
 	if (nextptr == NULL)
 		return "Invalid parameters for set kernel";
 	kern = select_kernel(nextptr);
@@ -1905,7 +1908,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 		clFinish(clState->commandQueue);
 	}
 
-	return hashes*64;
+	return hashes;//*64;
 }
 
 static void opencl_thread_shutdown(struct thr_info *thr)

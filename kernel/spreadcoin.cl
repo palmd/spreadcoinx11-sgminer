@@ -217,7 +217,17 @@ __kernel void search(__global const unsigned char* block2, volatile __global uin
     __global const unsigned char* kinv = block2;
     __global const unsigned char* prk = block2 + 32;
 
-    uint32_t high_nonce = get_global_id(0)*64;
+    uint32_t full_nonce = get_global_id(0);
+    uint32_t high_nonce = full_nonce & ~((uint32_t)0x3F);
+    uint32_t low_nonce = full_nonce & 0x3F;
+
+    __local uint64_t hashWholeBlock_big[4*WORKSIZE/64];
+    __local uint64_t *hashWholeBlock = hashWholeBlock_big + (4*(init/64));
+    __local uint64_t signbe_big[5*WORKSIZE/64];
+    __local uint64_t *signbe = signbe_big + (5*(init/64));
+    
+    if ((init & 0x3F) == 0) 
+    {
 
     const uint32_t disorder[8] = {801750719, 1076732275, 1354194884, 1162945305, 1, 0, 0, 0};
 
@@ -372,7 +382,6 @@ __kernel void search(__global const unsigned char* block2, volatile __global uin
     signature8[3] = signature[2] >> 56;
     signature8[4] = signature[3] >> 56;
 
-    uint64_t signbe[5];
     signbe[0] = SWAP8((signature[0] << 8) | signature8[0]);
     signbe[1] = SWAP8((signature[1] << 8) | signature8[1]);
     signbe[2] = SWAP8((signature[2] << 8) | signature8[2]);
@@ -508,14 +517,16 @@ __kernel void search(__global const unsigned char* block2, volatile __global uin
         hh[7] += h;
     }
 
-    uint64_t hashWholeBlock[4];
     hashWholeBlock[0] = (((uint64_t)hh[0]) << 32) | hh[1];
     hashWholeBlock[1] = (((uint64_t)hh[2]) << 32) | hh[3];
     hashWholeBlock[2] = (((uint64_t)hh[4]) << 32) | hh[5];
     hashWholeBlock[3] = (((uint64_t)hh[6]) << 32) | hh[7];
 
-    for (uint32_t low_nonce = 0; low_nonce < 64; low_nonce++)
-    {
+    } // first block
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    //for (uint32_t low_nonce = 0; low_nonce < 64; low_nonce++)
+    //{
         uint32_t nonce = high_nonce + low_nonce;
 
     // blake
@@ -1146,7 +1157,7 @@ __kernel void search(__global const unsigned char* block2, volatile __global uin
     if (result)
         output[output[0xFF]++] = nonce;
 
-    } // for (int iteration = 0; iteration < 64; iteration++)
+    //} // for (int iteration = 0; iteration < 64; iteration++)
 }
 
 #endif // DARKCOIN_CL

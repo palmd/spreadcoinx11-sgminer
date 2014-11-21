@@ -3,6 +3,7 @@
 
 #include "miner.h"
 
+#define max(x, y) ((x)>(y)?(x):(y))
 
 extern void print_ndevs(int *ndevs);
 extern void *reinit_gpu(void *userdata);
