@@ -214,7 +214,18 @@ void patch_opcodes(char *w, unsigned remaining)
 
 const char* spread_kernel_names[] = {
 		"signature",
-		"spreadX11",
+		"spreadBlake",
+		"bmw",
+		"groestl",
+		"skein",
+		"jh",
+		"keccak",
+		"luffa",
+		"cubehash",
+		"shavite",
+		"simd",
+		"echo",
+		"spreadSearch",
 		NULL
 };
 
@@ -760,6 +771,10 @@ built:
 	clState->numkernels = 0;
 	for (ij = 0; ij < 20 && spread_kernel_names[ij] != NULL && status == CL_SUCCESS; ij++) {
 		clState->kernels[ij] = clCreateKernel(clState->program, spread_kernel_names[ij], &status);
+		if (status != CL_SUCCESS) {
+			applog(LOG_ERR, "Error %d: Creating Kernel from program. (clCreateKernel) %s", status, spread_kernel_names[ij]);
+			return NULL;
+		}
 		clState->numkernels++;
 	}
 	if (status != CL_SUCCESS) {
