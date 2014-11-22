@@ -30,7 +30,9 @@
  * @author   Thomas Pornin <thomas.pornin@cryptolog.com>
  */
 
-#include "common.cl"
+#ifdef __cplusplus
+extern "C"{
+#endif
 
 /*
  * Parameters:
@@ -88,7 +90,7 @@
 #endif
 #endif
 
-__constant const sph_u64 RC[] = {
+__constant static const sph_u64 RC[] = {
 	SPH_C64(0x0000000000000001), SPH_C64(0x0000000000008082),
 	SPH_C64(0x800000000000808A), SPH_C64(0x8000000080008000),
 	SPH_C64(0x000000000000808B), SPH_C64(0x0000000080000001),
@@ -679,49 +681,3 @@ __constant const sph_u64 RC[] = {
 
 #endif
 
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void keccak(volatile __global hash_t* hashes)
-{
-    uint gid = get_global_id(0);
-    __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
-
-    // keccak
-
-    sph_u64 a00 = 0, a01 = 0, a02 = 0, a03 = 0, a04 = 0;
-    sph_u64 a10 = 0, a11 = 0, a12 = 0, a13 = 0, a14 = 0;
-    sph_u64 a20 = 0, a21 = 0, a22 = 0, a23 = 0, a24 = 0;
-    sph_u64 a30 = 0, a31 = 0, a32 = 0, a33 = 0, a34 = 0;
-    sph_u64 a40 = 0, a41 = 0, a42 = 0, a43 = 0, a44 = 0;
-
-    a10 = SPH_C64(0xFFFFFFFFFFFFFFFF);
-    a20 = SPH_C64(0xFFFFFFFFFFFFFFFF);
-    a31 = SPH_C64(0xFFFFFFFFFFFFFFFF);
-    a22 = SPH_C64(0xFFFFFFFFFFFFFFFF);
-    a23 = SPH_C64(0xFFFFFFFFFFFFFFFF);
-    a04 = SPH_C64(0xFFFFFFFFFFFFFFFF);
-
-    a00 ^= SWAP8(hash->h8[0]);
-    a10 ^= SWAP8(hash->h8[1]);
-    a20 ^= SWAP8(hash->h8[2]);
-    a30 ^= SWAP8(hash->h8[3]);
-    a40 ^= SWAP8(hash->h8[4]);
-    a01 ^= SWAP8(hash->h8[5]);
-    a11 ^= SWAP8(hash->h8[6]);
-    a21 ^= SWAP8(hash->h8[7]);
-    a31 ^= 0x8000000000000001;
-    KECCAK_F_1600;
-    // Finalize the "lane complement"
-    a10 = ~a10;
-    a20 = ~a20;
-
-    hash->h8[0] = SWAP8(a00);
-    hash->h8[1] = SWAP8(a10);
-    hash->h8[2] = SWAP8(a20);
-    hash->h8[3] = SWAP8(a30);
-    hash->h8[4] = SWAP8(a40);
-    hash->h8[5] = SWAP8(a01);
-    hash->h8[6] = SWAP8(a11);
-    hash->h8[7] = SWAP8(a21);
-
-    barrier(CLK_GLOBAL_MEM_FENCE);
-}

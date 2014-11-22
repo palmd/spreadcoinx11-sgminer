@@ -30,28 +30,26 @@
  * @author   Thomas Pornin <thomas.pornin@cryptolog.com>
  */
 
-#include "common.cl"
-
-__constant const sph_u32 IV224[] = {
+__constant static const sph_u32 IV224[] = {
 	SPH_C32(0xf4c9120d), SPH_C32(0x6286f757), SPH_C32(0xee39e01c),
 	SPH_C32(0xe074e3cb), SPH_C32(0xa1127c62), SPH_C32(0x9a43d215),
 	SPH_C32(0xbd8d679a)
 };
 
-__constant const sph_u32 IV256[] = {
+__constant static const sph_u32 IV256[] = {
 	SPH_C32(0xe952bdde), SPH_C32(0x6671135f), SPH_C32(0xe0d4f668),
 	SPH_C32(0xd2b0b594), SPH_C32(0xf96c621d), SPH_C32(0xfbf929de),
 	SPH_C32(0x9149e899), SPH_C32(0x34f8c248)
 };
 
-__constant const sph_u32 IV384[] = {
+__constant static const sph_u32 IV384[] = {
 	SPH_C32(0xaa61ec0d), SPH_C32(0x31252e1f), SPH_C32(0xa01db4c7),
 	SPH_C32(0x00600985), SPH_C32(0x215ef44a), SPH_C32(0x741b5e9c),
 	SPH_C32(0xfa693e9a), SPH_C32(0x473eb040), SPH_C32(0xe502ae8a),
 	SPH_C32(0xa99c25e0), SPH_C32(0xbc95517c), SPH_C32(0x5c1095a1)
 };
 
-__constant const sph_u32 IV512[] = {
+__constant static const sph_u32 IV512[] = {
 	SPH_C32(0x8807a57e), SPH_C32(0xe616af75), SPH_C32(0xc5d3e4db),
 	SPH_C32(0xac9ab027), SPH_C32(0xd915f117), SPH_C32(0xb6eecc54),
 	SPH_C32(0x06e8020b), SPH_C32(0x4a92efd1), SPH_C32(0xaac6e2c9),
@@ -60,7 +58,7 @@ __constant const sph_u32 IV512[] = {
 	SPH_C32(0xe13e3567)
 };
 
-__constant const sph_u32 mixtab0_c[] = {
+__constant static const sph_u32 mixtab0[] = {
 	SPH_C32(0x63633297), SPH_C32(0x7c7c6feb), SPH_C32(0x77775ec7),
 	SPH_C32(0x7b7b7af7), SPH_C32(0xf2f2e8e5), SPH_C32(0x6b6b0ab7),
 	SPH_C32(0x6f6f16a7), SPH_C32(0xc5c56d39), SPH_C32(0x303090c0),
@@ -149,7 +147,7 @@ __constant const sph_u32 mixtab0_c[] = {
 	SPH_C32(0x16166258)
 };
 
-__constant const sph_u32 mixtab1_c[] = {
+__constant static const sph_u32 mixtab1[] = {
 	SPH_C32(0x97636332), SPH_C32(0xeb7c7c6f), SPH_C32(0xc777775e),
 	SPH_C32(0xf77b7b7a), SPH_C32(0xe5f2f2e8), SPH_C32(0xb76b6b0a),
 	SPH_C32(0xa76f6f16), SPH_C32(0x39c5c56d), SPH_C32(0xc0303090),
@@ -238,7 +236,7 @@ __constant const sph_u32 mixtab1_c[] = {
 	SPH_C32(0x58161662)
 };
 
-__constant const sph_u32 mixtab2_c[] = {
+__constant static const sph_u32 mixtab2[] = {
 	SPH_C32(0x32976363), SPH_C32(0x6feb7c7c), SPH_C32(0x5ec77777),
 	SPH_C32(0x7af77b7b), SPH_C32(0xe8e5f2f2), SPH_C32(0x0ab76b6b),
 	SPH_C32(0x16a76f6f), SPH_C32(0x6d39c5c5), SPH_C32(0x90c03030),
@@ -327,7 +325,7 @@ __constant const sph_u32 mixtab2_c[] = {
 	SPH_C32(0x62581616)
 };
 
-__constant const sph_u32 mixtab3_c[] = {
+__constant static const sph_u32 mixtab3[] = {
 	SPH_C32(0x63329763), SPH_C32(0x7c6feb7c), SPH_C32(0x775ec777),
 	SPH_C32(0x7b7af77b), SPH_C32(0xf2e8e5f2), SPH_C32(0x6b0ab76b),
 	SPH_C32(0x6f16a76f), SPH_C32(0xc56d39c5), SPH_C32(0x3090c030),
@@ -673,98 +671,3 @@ __constant const sph_u32 mixtab3_c[] = {
 	} while (0)
 
 
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void fugue(volatile __global hash_t* hashes)
-{
-    uint gid = get_global_id(0);
-    __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
-
-    // mixtab
-    __local sph_u32 mixtab0[256], mixtab1[256], mixtab2[256], mixtab3[256];
-    int init = get_local_id(0);
-    int step = get_local_size(0);
-    for (int i = init; i < 256; i += step)
-    {
-    	mixtab0[i] = mixtab0_c[i];
-    	mixtab1[i] = mixtab1_c[i];
-    	mixtab2[i] = mixtab2_c[i];
-    	mixtab3[i] = mixtab3_c[i];
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-        // fugue
-	sph_u32 S00, S01, S02, S03, S04, S05, S06, S07, S08, S09;
-	sph_u32 S10, S11, S12, S13, S14, S15, S16, S17, S18, S19;
-	sph_u32 S20, S21, S22, S23, S24, S25, S26, S27, S28, S29;
-	sph_u32 S30, S31, S32, S33, S34, S35;
-
-        ulong fc_bit_count = (sph_u64) 64 << 3;
-
-        S00 = S01 = S02 = S03 = S04 = S05 = S06 = S07 = S08 = S09 = S10 = S11 = S12 = S13 = S14 = S15 = S16 = S17 = S18 = S19 = 0;
-        S20 = SPH_C32(0x8807a57e); S21 = SPH_C32(0xe616af75); S22 = SPH_C32(0xc5d3e4db); S23 = SPH_C32(0xac9ab027);
-        S24 = SPH_C32(0xd915f117); S25 = SPH_C32(0xb6eecc54); S26 = SPH_C32(0x06e8020b); S27 = SPH_C32(0x4a92efd1);
-        S28 = SPH_C32(0xaac6e2c9); S29 = SPH_C32(0xddb21398); S30 = SPH_C32(0xcae65838); S31 = SPH_C32(0x437f203f);
-        S32 = SPH_C32(0x25ea78e7); S33 = SPH_C32(0x951fddd6); S34 = SPH_C32(0xda6ed11d); S35 = SPH_C32(0xe13e3567);
-
-        FUGUE512_3((hash->h4[0x0]), (hash->h4[0x1]), (hash->h4[0x2]));
-        FUGUE512_3((hash->h4[0x3]), (hash->h4[0x4]), (hash->h4[0x5]));
-        FUGUE512_3((hash->h4[0x6]), (hash->h4[0x7]), (hash->h4[0x8]));
-        FUGUE512_3((hash->h4[0x9]), (hash->h4[0xA]), (hash->h4[0xB]));
-        FUGUE512_3((hash->h4[0xC]), (hash->h4[0xD]), (hash->h4[0xE]));
-        FUGUE512_3((hash->h4[0xF]), as_uint2(fc_bit_count).y, as_uint2(fc_bit_count).x);
-
-        // apply round shift if necessary
-        int i;
-
-        for (i = 0; i < 32; i ++) {
-            ROR3;
-            CMIX36(S00, S01, S02, S04, S05, S06, S18, S19, S20);
-            SMIX(S00, S01, S02, S03);
-        }
-        for (i = 0; i < 13; i ++) {
-            S04 ^= S00;
-            S09 ^= S00;
-            S18 ^= S00;
-            S27 ^= S00;
-            ROR9;
-            SMIX(S00, S01, S02, S03);
-            S04 ^= S00;
-            S10 ^= S00;
-            S18 ^= S00;
-            S27 ^= S00;
-            ROR9;
-            SMIX(S00, S01, S02, S03);
-            S04 ^= S00;
-            S10 ^= S00;
-            S19 ^= S00;
-            S27 ^= S00;
-            ROR9;
-            SMIX(S00, S01, S02, S03);
-            S04 ^= S00;
-            S10 ^= S00;
-            S19 ^= S00;
-            S28 ^= S00;
-            ROR8;
-            SMIX(S00, S01, S02, S03);
-        }
-        S04 ^= S00;
-        S09 ^= S00;
-        S18 ^= S00;
-        S27 ^= S00;
-
-        hash->h4[0] = SWAP4(S01);
-        hash->h4[1] = SWAP4(S02);
-        hash->h4[2] = SWAP4(S03);
-        hash->h4[3] = SWAP4(S04);
-        hash->h4[4] = SWAP4(S09);
-        hash->h4[5] = SWAP4(S10);
-        hash->h4[6] = SWAP4(S11);
-        hash->h4[7] = SWAP4(S12);
-        hash->h4[8] = SWAP4(S18);
-        hash->h4[9] = SWAP4(S19);
-        hash->h4[10] = SWAP4(S20);
-        hash->h4[11] = SWAP4(S21);
-        hash->h4[12] = SWAP4(S27);
-        hash->h4[13] = SWAP4(S28);
-        hash->h4[14] = SWAP4(S29);
-        hash->h4[15] = SWAP4(S30);
-}

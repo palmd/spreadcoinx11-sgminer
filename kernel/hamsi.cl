@@ -30,8 +30,6 @@
  * @author   Thomas Pornin <thomas.pornin@cryptolog.com>
  */
 
-#include "common.cl"
-
 #if SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_HAMSI
 #define SPH_SMALL_FOOTPRINT_HAMSI   1
 #endif
@@ -107,7 +105,7 @@
 
 #include "hamsi_helper.cl"
 
-__constant const sph_u32 HAMSI_IV224[] = {
+__constant static const sph_u32 HAMSI_IV224[] = {
 	SPH_C32(0xc3967a67), SPH_C32(0xc3bc6c20), SPH_C32(0x4bc3bcc3),
 	SPH_C32(0xa7c3bc6b), SPH_C32(0x2c204b61), SPH_C32(0x74686f6c),
 	SPH_C32(0x69656b65), SPH_C32(0x20556e69)
@@ -118,20 +116,20 @@ __constant const sph_u32 HAMSI_IV224[] = {
  * round 2 of the SHA-3 competition; the UTF-8 encoding is wrong and
  * shall soon be corrected in the official Hamsi specification.
  *
-__constant const sph_u32 HAMSI_IV224[] = {
+__constant static const sph_u32 HAMSI_IV224[] = {
 	SPH_C32(0x3c967a67), SPH_C32(0x3cbc6c20), SPH_C32(0xb4c343c3),
 	SPH_C32(0xa73cbc6b), SPH_C32(0x2c204b61), SPH_C32(0x74686f6c),
 	SPH_C32(0x69656b65), SPH_C32(0x20556e69)
 };
  */
 
-__constant const sph_u32 HAMSI_IV256[] = {
+__constant static const sph_u32 HAMSI_IV256[] = {
 	SPH_C32(0x76657273), SPH_C32(0x69746569), SPH_C32(0x74204c65),
 	SPH_C32(0x7576656e), SPH_C32(0x2c204465), SPH_C32(0x70617274),
 	SPH_C32(0x656d656e), SPH_C32(0x7420456c)
 };
 
-__constant const sph_u32 HAMSI_IV384[] = {
+__constant static const sph_u32 HAMSI_IV384[] = {
 	SPH_C32(0x656b7472), SPH_C32(0x6f746563), SPH_C32(0x686e6965),
 	SPH_C32(0x6b2c2043), SPH_C32(0x6f6d7075), SPH_C32(0x74657220),
 	SPH_C32(0x53656375), SPH_C32(0x72697479), SPH_C32(0x20616e64),
@@ -140,7 +138,7 @@ __constant const sph_u32 HAMSI_IV384[] = {
 	SPH_C32(0x2c204b61)
 };
 
-__constant const sph_u32 HAMSI_IV512[] = {
+__constant static const sph_u32 HAMSI_IV512[] = {
 	SPH_C32(0x73746565), SPH_C32(0x6c706172), SPH_C32(0x6b204172),
 	SPH_C32(0x656e6265), SPH_C32(0x72672031), SPH_C32(0x302c2062),
 	SPH_C32(0x75732032), SPH_C32(0x3434362c), SPH_C32(0x20422d33),
@@ -149,7 +147,7 @@ __constant const sph_u32 HAMSI_IV512[] = {
 	SPH_C32(0x6769756d)
 };
 
-__constant const sph_u32 alpha_n[] = {
+__constant static const sph_u32 alpha_n[] = {
 	SPH_C32(0xff00f0f0), SPH_C32(0xccccaaaa), SPH_C32(0xf0f0cccc),
 	SPH_C32(0xff00aaaa), SPH_C32(0xccccaaaa), SPH_C32(0xf0f0ff00),
 	SPH_C32(0xaaaacccc), SPH_C32(0xf0f0ff00), SPH_C32(0xf0f0cccc),
@@ -163,7 +161,7 @@ __constant const sph_u32 alpha_n[] = {
 	SPH_C32(0xff00aaaa), SPH_C32(0xccccf0f0)
 };
 
-__constant const sph_u32 alpha_f[] = {
+__constant static const sph_u32 alpha_f[] = {
 	SPH_C32(0xcaf9639c), SPH_C32(0x0ff0f9c0), SPH_C32(0x639c0ff0),
 	SPH_C32(0xcaf9f9c0), SPH_C32(0x0ff0f9c0), SPH_C32(0x639ccaf9),
 	SPH_C32(0xf9c00ff0), SPH_C32(0x639ccaf9), SPH_C32(0x639c0ff0),
@@ -443,49 +441,3 @@ __constant const sph_u32 alpha_f[] = {
 	} while (0)
 
 
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void hamsi(volatile __global hash_t* hashes)
-{
-    uint gid = get_global_id(0);
-    __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
-
-    __local sph_u32 T512_L[1024];
-    __constant sph_u32 *T512_C = &(T512[0][0]);
-    int init = get_local_id(0);
-    int step = get_local_size(0);
-    for (int i = init; i < 1024; i += step)
-    {
-		T512_L[i] = T512_C[i];
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    {
-        sph_u32 c0 = HAMSI_IV512[0], c1 = HAMSI_IV512[1], c2 = HAMSI_IV512[2], c3 = HAMSI_IV512[3];
-        sph_u32 c4 = HAMSI_IV512[4], c5 = HAMSI_IV512[5], c6 = HAMSI_IV512[6], c7 = HAMSI_IV512[7];
-        sph_u32 c8 = HAMSI_IV512[8], c9 = HAMSI_IV512[9], cA = HAMSI_IV512[10], cB = HAMSI_IV512[11];
-        sph_u32 cC = HAMSI_IV512[12], cD = HAMSI_IV512[13], cE = HAMSI_IV512[14], cF = HAMSI_IV512[15];
-        sph_u32 m0, m1, m2, m3, m4, m5, m6, m7;
-        sph_u32 m8, m9, mA, mB, mC, mD, mE, mF;
-        sph_u32 h[16] = { c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, cA, cB, cC, cD, cE, cF };
-
-#define buf(u) hash->h1[i + u]
-        for(int i = 0; i < 64; i += 8) {
-            INPUT_BIG_LOCAL;
-            P_BIG;
-            T_BIG;
-        }
-#undef buf
-#define buf(u) (u == 0 ? 0x80 : 0)
-        INPUT_BIG_LOCAL;
-        P_BIG;
-        T_BIG;
-#undef buf
-#define buf(u) (u == 6 ? 2 : 0)
-        INPUT_BIG_LOCAL;
-        PF_BIG;
-        T_BIG;
-
-        for (unsigned u = 0; u < 16; u ++)
-            hash->h4[u] = h[u];
-    }
-}

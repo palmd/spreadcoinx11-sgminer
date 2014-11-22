@@ -30,13 +30,15 @@
  * @author   Thomas Pornin <thomas.pornin@cryptolog.com>
  */
 
-#include "common.cl"
+#ifdef __cplusplus
+extern "C"{
+#endif
 
 #if SPH_64_TRUE && !defined SPH_LUFFA_PARALLEL
 #define SPH_LUFFA_PARALLEL   1
 #endif
 
-__constant const sph_u32 V_INIT[5][8] = {
+__constant static const sph_u32 V_INIT[5][8] = {
 	{
 		SPH_C32(0x6d251e69), SPH_C32(0x44b051e0),
 		SPH_C32(0x4eaa6fb4), SPH_C32(0xdbf78465),
@@ -65,28 +67,28 @@ __constant const sph_u32 V_INIT[5][8] = {
 	}
 };
 
-__constant const sph_u32 RC00[8] = {
+__constant static const sph_u32 RC00[8] = {
 	SPH_C32(0x303994a6), SPH_C32(0xc0e65299),
 	SPH_C32(0x6cc33a12), SPH_C32(0xdc56983e),
 	SPH_C32(0x1e00108f), SPH_C32(0x7800423d),
 	SPH_C32(0x8f5b7882), SPH_C32(0x96e1db12)
 };
 
-__constant const sph_u32 RC04[8] = {
+__constant static const sph_u32 RC04[8] = {
 	SPH_C32(0xe0337818), SPH_C32(0x441ba90d),
 	SPH_C32(0x7f34d442), SPH_C32(0x9389217f),
 	SPH_C32(0xe5a8bce6), SPH_C32(0x5274baf4),
 	SPH_C32(0x26889ba7), SPH_C32(0x9a226e9d)
 };
 
-__constant const sph_u32 RC10[8] = {
+__constant static const sph_u32 RC10[8] = {
 	SPH_C32(0xb6de10ed), SPH_C32(0x70f47aae),
 	SPH_C32(0x0707a3d4), SPH_C32(0x1c1e8f51),
 	SPH_C32(0x707a3d45), SPH_C32(0xaeb28562),
 	SPH_C32(0xbaca1589), SPH_C32(0x40a46f3e)
 };
 
-__constant const sph_u32 RC14[8] = {
+__constant static const sph_u32 RC14[8] = {
 	SPH_C32(0x01685f3d), SPH_C32(0x05a17cf4),
 	SPH_C32(0xbd09caca), SPH_C32(0xf4272b28),
 	SPH_C32(0x144ae5cc), SPH_C32(0xfaa7ae2b),
@@ -95,14 +97,14 @@ __constant const sph_u32 RC14[8] = {
 
 #if SPH_LUFFA_PARALLEL
 
-__constant const sph_u64 RCW010[8] = {
+__constant static const sph_u64 RCW010[8] = {
 	SPH_C64(0xb6de10ed303994a6), SPH_C64(0x70f47aaec0e65299),
 	SPH_C64(0x0707a3d46cc33a12), SPH_C64(0x1c1e8f51dc56983e),
 	SPH_C64(0x707a3d451e00108f), SPH_C64(0xaeb285627800423d),
 	SPH_C64(0xbaca15898f5b7882), SPH_C64(0x40a46f3e96e1db12)
 };
 
-__constant const sph_u64 RCW014[8] = {
+__constant static const sph_u64 RCW014[8] = {
 	SPH_C64(0x01685f3de0337818), SPH_C64(0x05a17cf4441ba90d),
 	SPH_C64(0xbd09caca7f34d442), SPH_C64(0xf4272b289389217f),
 	SPH_C64(0x144ae5cce5a8bce6), SPH_C64(0xfaa7ae2b5274baf4),
@@ -111,28 +113,28 @@ __constant const sph_u64 RCW014[8] = {
 
 #endif
 
-__constant const sph_u32 RC20[8] = {
+__constant static const sph_u32 RC20[8] = {
 	SPH_C32(0xfc20d9d2), SPH_C32(0x34552e25),
 	SPH_C32(0x7ad8818f), SPH_C32(0x8438764a),
 	SPH_C32(0xbb6de032), SPH_C32(0xedb780c8),
 	SPH_C32(0xd9847356), SPH_C32(0xa2c78434)
 };
 
-__constant const sph_u32 RC24[8] = {
+__constant static const sph_u32 RC24[8] = {
 	SPH_C32(0xe25e72c1), SPH_C32(0xe623bb72),
 	SPH_C32(0x5c58a4a4), SPH_C32(0x1e38e2e7),
 	SPH_C32(0x78e38b9d), SPH_C32(0x27586719),
 	SPH_C32(0x36eda57f), SPH_C32(0x703aace7)
 };
 
-__constant const sph_u32 RC30[8] = {
+__constant static const sph_u32 RC30[8] = {
 	SPH_C32(0xb213afa5), SPH_C32(0xc84ebe95),
 	SPH_C32(0x4e608a22), SPH_C32(0x56d858fe),
 	SPH_C32(0x343b138f), SPH_C32(0xd0ec4e3d),
 	SPH_C32(0x2ceb4882), SPH_C32(0xb3ad2208)
 };
 
-__constant const sph_u32 RC34[8] = {
+__constant static const sph_u32 RC34[8] = {
 	SPH_C32(0xe028c9bf), SPH_C32(0x44756f91),
 	SPH_C32(0x7e8fce32), SPH_C32(0x956548be),
 	SPH_C32(0xfe191be2), SPH_C32(0x3cb226e5),
@@ -141,7 +143,7 @@ __constant const sph_u32 RC34[8] = {
 
 #if SPH_LUFFA_PARALLEL
 
-__constant const sph_u64 RCW230[8] = {
+__constant static const sph_u64 RCW230[8] = {
 	SPH_C64(0xb213afa5fc20d9d2), SPH_C64(0xc84ebe9534552e25),
 	SPH_C64(0x4e608a227ad8818f), SPH_C64(0x56d858fe8438764a),
 	SPH_C64(0x343b138fbb6de032), SPH_C64(0xd0ec4e3dedb780c8),
@@ -149,7 +151,7 @@ __constant const sph_u64 RCW230[8] = {
 };
 
 
-__constant const sph_u64 RCW234[8] = {
+__constant static const sph_u64 RCW234[8] = {
 	SPH_C64(0xe028c9bfe25e72c1), SPH_C64(0x44756f91e623bb72),
 	SPH_C64(0x7e8fce325c58a4a4), SPH_C64(0x956548be1e38e2e7),
 	SPH_C64(0xfe191be278e38b9d), SPH_C64(0x3cb226e527586719),
@@ -158,14 +160,14 @@ __constant const sph_u64 RCW234[8] = {
 
 #endif
 
-__constant const sph_u32 RC40[8] = {
+__constant static const sph_u32 RC40[8] = {
 	SPH_C32(0xf0d2e9e3), SPH_C32(0xac11d7fa),
 	SPH_C32(0x1bcb66f2), SPH_C32(0x6f2d9bc9),
 	SPH_C32(0x78602649), SPH_C32(0x8edae952),
 	SPH_C32(0x3b6ba548), SPH_C32(0xedae9520)
 };
 
-__constant const sph_u32 RC44[8] = {
+__constant static const sph_u32 RC44[8] = {
 	SPH_C32(0x5090d577), SPH_C32(0x2d1925ab),
 	SPH_C32(0xb46496ac), SPH_C32(0xd1925ab0),
 	SPH_C32(0x29131ab6), SPH_C32(0x0fc053c3),
@@ -484,69 +486,3 @@ __constant const sph_u32 RC44[8] = {
 
 #endif
 
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void luffa(volatile __global hash_t* hashes)
-{
-    uint gid = get_global_id(0);
-    __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
-
-    // luffa
-
-    sph_u32 V00 = SPH_C32(0x6d251e69), V01 = SPH_C32(0x44b051e0), V02 = SPH_C32(0x4eaa6fb4), V03 = SPH_C32(0xdbf78465), V04 = SPH_C32(0x6e292011), V05 = SPH_C32(0x90152df4), V06 = SPH_C32(0xee058139), V07 = SPH_C32(0xdef610bb);
-    sph_u32 V10 = SPH_C32(0xc3b44b95), V11 = SPH_C32(0xd9d2f256), V12 = SPH_C32(0x70eee9a0), V13 = SPH_C32(0xde099fa3), V14 = SPH_C32(0x5d9b0557), V15 = SPH_C32(0x8fc944b3), V16 = SPH_C32(0xcf1ccf0e), V17 = SPH_C32(0x746cd581);
-    sph_u32 V20 = SPH_C32(0xf7efc89d), V21 = SPH_C32(0x5dba5781), V22 = SPH_C32(0x04016ce5), V23 = SPH_C32(0xad659c05), V24 = SPH_C32(0x0306194f), V25 = SPH_C32(0x666d1836), V26 = SPH_C32(0x24aa230a), V27 = SPH_C32(0x8b264ae7);
-    sph_u32 V30 = SPH_C32(0x858075d5), V31 = SPH_C32(0x36d79cce), V32 = SPH_C32(0xe571f7d7), V33 = SPH_C32(0x204b1f67), V34 = SPH_C32(0x35870c6a), V35 = SPH_C32(0x57e9e923), V36 = SPH_C32(0x14bcb808), V37 = SPH_C32(0x7cde72ce);
-    sph_u32 V40 = SPH_C32(0x6c68e9be), V41 = SPH_C32(0x5ec41e22), V42 = SPH_C32(0xc825b7c7), V43 = SPH_C32(0xaffb4363), V44 = SPH_C32(0xf5df3999), V45 = SPH_C32(0x0fc688f1), V46 = SPH_C32(0xb07224cc), V47 = SPH_C32(0x03e86cea);
-
-    DECL_TMP8(M);
-
-    M0 = hash->h4[1];
-    M1 = hash->h4[0];
-    M2 = hash->h4[3];
-    M3 = hash->h4[2];
-    M4 = hash->h4[5];
-    M5 = hash->h4[4];
-    M6 = hash->h4[7];
-    M7 = hash->h4[6];
-
-    for(uint i = 0; i < 5; i++)
-    {
-        MI5;
-        LUFFA_P5;
-
-        if(i == 0) {
-            M0 = hash->h4[9];
-            M1 = hash->h4[8];
-            M2 = hash->h4[11];
-            M3 = hash->h4[10];
-            M4 = hash->h4[13];
-            M5 = hash->h4[12];
-            M6 = hash->h4[15];
-            M7 = hash->h4[14];
-        } else if(i == 1) {
-            M0 = 0x80000000;
-            M1 = M2 = M3 = M4 = M5 = M6 = M7 = 0;
-        } else if(i == 2) {
-            M0 = M1 = M2 = M3 = M4 = M5 = M6 = M7 = 0;
-        } else if(i == 3) {
-            hash->h4[1] = V00 ^ V10 ^ V20 ^ V30 ^ V40;
-            hash->h4[0] = V01 ^ V11 ^ V21 ^ V31 ^ V41;
-            hash->h4[3] = V02 ^ V12 ^ V22 ^ V32 ^ V42;
-            hash->h4[2] = V03 ^ V13 ^ V23 ^ V33 ^ V43;
-            hash->h4[5] = V04 ^ V14 ^ V24 ^ V34 ^ V44;
-            hash->h4[4] = V05 ^ V15 ^ V25 ^ V35 ^ V45;
-            hash->h4[7] = V06 ^ V16 ^ V26 ^ V36 ^ V46;
-            hash->h4[6] = V07 ^ V17 ^ V27 ^ V37 ^ V47;
-        }
-    }
-    hash->h4[9] = V00 ^ V10 ^ V20 ^ V30 ^ V40;
-    hash->h4[8] = V01 ^ V11 ^ V21 ^ V31 ^ V41;
-    hash->h4[11] = V02 ^ V12 ^ V22 ^ V32 ^ V42;
-    hash->h4[10] = V03 ^ V13 ^ V23 ^ V33 ^ V43;
-    hash->h4[13] = V04 ^ V14 ^ V24 ^ V34 ^ V44;
-    hash->h4[12] = V05 ^ V15 ^ V25 ^ V35 ^ V45;
-    hash->h4[15] = V06 ^ V16 ^ V26 ^ V36 ^ V46;
-    hash->h4[14] = V07 ^ V17 ^ V27 ^ V37 ^ V47;
-
-	barrier(CLK_GLOBAL_MEM_FENCE);
-}

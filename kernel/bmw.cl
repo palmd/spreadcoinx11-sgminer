@@ -30,9 +30,7 @@
  * @author   Thomas Pornin <thomas.pornin@cryptolog.com>
  */
 
-#include "common.cl"
-
-__constant const sph_u64 BMW_IV512[] = {
+__constant static const sph_u64 BMW_IV512[] = {
 	SPH_C64(0x8081828384858687), SPH_C64(0x88898A8B8C8D8E8F),
 	SPH_C64(0x9091929394959697), SPH_C64(0x98999A9B9C9D9E9F),
 	SPH_C64(0xA0A1A2A3A4A5A6A7), SPH_C64(0xA8A9AAABACADAEAF),
@@ -369,7 +367,7 @@ __constant const sph_u64 BMW_IV512[] = {
 
 #define FOLDb   FOLD(sph_u64, MAKE_Qb, SPH_T64, SPH_ROTL64, M, Qb, dH)
 
-__constant const sph_u64 final_b[16] = {
+__constant static const sph_u64 final_b[16] = {
 	SPH_C64(0xaaaaaaaaaaaaaaa0), SPH_C64(0xaaaaaaaaaaaaaaa1),
 	SPH_C64(0xaaaaaaaaaaaaaaa2), SPH_C64(0xaaaaaaaaaaaaaaa3),
 	SPH_C64(0xaaaaaaaaaaaaaaa4), SPH_C64(0xaaaaaaaaaaaaaaa5),
@@ -380,64 +378,3 @@ __constant const sph_u64 final_b[16] = {
 	SPH_C64(0xaaaaaaaaaaaaaaae), SPH_C64(0xaaaaaaaaaaaaaaaf)
 };
 
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void bmw(volatile __global hash_t* hashes)
-{
-    uint gid = get_global_id(0);
-    __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
-
-    // bmw
-    sph_u64 BMW_H[16];
-    for(unsigned u = 0; u < 16; u++)
-        BMW_H[u] = BMW_IV512[u];
-
-    sph_u64 BMW_h1[16], BMW_h2[16];
-    sph_u64 mv[16];
-
-    mv[ 0] = SWAP8(hash->h8[0]);
-    mv[ 1] = SWAP8(hash->h8[1]);
-    mv[ 2] = SWAP8(hash->h8[2]);
-    mv[ 3] = SWAP8(hash->h8[3]);
-    mv[ 4] = SWAP8(hash->h8[4]);
-    mv[ 5] = SWAP8(hash->h8[5]);
-    mv[ 6] = SWAP8(hash->h8[6]);
-    mv[ 7] = SWAP8(hash->h8[7]);
-    mv[ 8] = 0x80;
-    mv[ 9] = 0;
-    mv[10] = 0;
-    mv[11] = 0;
-    mv[12] = 0;
-    mv[13] = 0;
-    mv[14] = 0;
-    mv[15] = 0x200;
-#define M(x)    (mv[x])
-#define H(x)    (BMW_H[x])
-#define dH(x)   (BMW_h2[x])
-
-    FOLDb;
-
-#undef M
-#undef H
-#undef dH
-
-#define M(x)    (BMW_h2[x])
-#define H(x)    (final_b[x])
-#define dH(x)   (BMW_h1[x])
-
-    FOLDb;
-
-#undef M
-#undef H
-#undef dH
-
-    hash->h8[0] = SWAP8(BMW_h1[8]);
-    hash->h8[1] = SWAP8(BMW_h1[9]);
-    hash->h8[2] = SWAP8(BMW_h1[10]);
-    hash->h8[3] = SWAP8(BMW_h1[11]);
-    hash->h8[4] = SWAP8(BMW_h1[12]);
-    hash->h8[5] = SWAP8(BMW_h1[13]);
-    hash->h8[6] = SWAP8(BMW_h1[14]);
-    hash->h8[7] = SWAP8(BMW_h1[15]);
-	barrier(CLK_GLOBAL_MEM_FENCE);
-
-}
