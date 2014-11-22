@@ -1546,6 +1546,11 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 	cl_int status;
 	size_t globalThreads[1];
 	size_t localThreads[1] = { clState->wsize };
+	// for signatures
+	size_t block_work_offset[1];
+	size_t blockThreads[1];
+	size_t localBlockThreads[1];
+
 	int64_t hashes;
 	int found = FOUND;
 	int buffersize = BUFFERSIZE;
@@ -1579,18 +1584,32 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 		return -1;
 	}
 
+	blockThreads[0] = globalThreads[0]/64+1;
+	localBlockThreads[0] = localThreads[0];
+
 	if (clState->goffset) {
 		size_t global_work_offset[1];
 
 		global_work_offset[0] = work->blk.nonce;
+		block_work_offset[0] = global_work_offset[0]/64;
 		for (i = 0; i < clState->numkernels && status == CL_SUCCESS; i++) {
-			status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernels[i], 1, global_work_offset,
+			if (i == 0) {
+				status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernels[i], 1, block_work_offset,
+						blockThreads, localBlockThreads, 0,  NULL, NULL);
+			} else {
+				status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernels[i], 1, global_work_offset,
 					globalThreads, localThreads, 0,  NULL, NULL);
+			}
 		}
 	} else {
-		for (i = 0; i < clState->numkernels && status == CL_SUCCESS; i++) {
+		if (i == 0) {
 			status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernels[i], 1, NULL,
-				globalThreads, localThreads, 0,  NULL, NULL);
+					blockThreads, localBlockThreads, 0,  NULL, NULL);
+		} else {
+			for (i = 0; i < clState->numkernels && status == CL_SUCCESS; i++) {
+				status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernels[i], 1, NULL,
+						globalThreads, localThreads, 0,  NULL, NULL);
+			}
 		}
 	}
 	if (unlikely(status != CL_SUCCESS)) {

@@ -797,6 +797,7 @@ built:
 
 	// calculate sizes of sign and hash buffers
 	size_t num_signs = (clState->padbufsize / (64 * 64)) + 1;
+	if (num_signs < cgpu->work_size) num_signs = cgpu->work_size + 1;
 	clState->signbufsize = 5 * 8 * num_signs; //(5 blocks of 8 bytes)
 	clState->hwbbufsize = 4 * 8 * num_signs; //(5 blocks of 8 bytes)
 	clState->signbuffer = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, clState->signbufsize, NULL, &status);

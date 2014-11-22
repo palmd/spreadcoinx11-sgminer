@@ -207,8 +207,8 @@ __kernel void signature(__global const unsigned char* block2, __global uint64_t 
 {
 
     uint32_t full_nonce = get_global_id(0);
-    uint32_t high_nonce = full_nonce & ~((uint32_t)0x3F);
-    uint32_t low_nonce = full_nonce & 0x3F;
+    uint32_t high_nonce = full_nonce * 64;// & ~((uint32_t)0x3F);
+    //uint32_t low_nonce = full_nonce & 0x3F;
 
 	__global const unsigned char* block = block2 + 64;
     __global const unsigned char* kinv = block2;
@@ -217,7 +217,7 @@ __kernel void signature(__global const unsigned char* block2, __global uint64_t 
     __global uint64_t *hashWholeBlock = hashWholeBlock_big + (4*(high_nonce/64));
     __global uint64_t *signbe = signbe_big + (5*(high_nonce/64));
 
-    if ((high_nonce & 0x3F) == 0)
+    //if ((high_nonce & 0x3F) == 0)
     {
 
     const uint32_t disorder[8] = {801750719, 1076732275, 1354194884, 1162945305, 1, 0, 0, 0};
