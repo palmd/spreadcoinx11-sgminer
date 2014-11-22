@@ -347,7 +347,6 @@ AC_DEFINE_UNQUOTED([ALEXKAROLD_KERNNAME], ["alexkarold"], [Filename for Alexey K
 AC_DEFINE_UNQUOTED([CKOLIVAS_KERNNAME], ["ckolivas"], [Filename for original scrypt kernel])
 AC_DEFINE_UNQUOTED([ZUIKKIS_KERNNAME], ["zuikkis"], [Filename for Zuikkis' optimised kernel])
 AC_DEFINE_UNQUOTED([PSW_KERNNAME], ["psw"], [Filename for psw's experimental kernel])
-AC_DEFINE_UNQUOTED([DARKCOIN_KERNNAME], ["spreadcoin"], [Filename for SpreadCoin optimised kernel])
 AC_DEFINE_UNQUOTED([QUBITCOIN_KERNNAME], ["qubitcoin"], [Filename for QubitCoin optimised kernel])
 AC_DEFINE_UNQUOTED([QUARKCOIN_KERNNAME], ["quarkcoin"], [Filename for QuarkCoin optimised kernel])
 AC_DEFINE_UNQUOTED([MYRIADCOIN_GROESTL_KERNNAME], ["myriadcoin-groestl"], [Filename for MyriadCoin-Groestl optimised kernel])
@@ -361,6 +360,7 @@ AC_DEFINE_UNQUOTED([MARUCOIN_KERNNAME], ["marucoin"], [Filename for MaruCoin opt
 AC_DEFINE_UNQUOTED([X11MOD_KERNNAME], ["x11mod"], [Filename for X11mod optimised kernel])
 AC_DEFINE_UNQUOTED([X13MOD_KERNNAME], ["x13mod"], [Filename for X13mod optimised kernel])
 AC_DEFINE_UNQUOTED([X13MODOLD_KERNNAME], ["x13modold"], [Filename for X13mod optimised kernel (AMD HD 5xxx/6xxx)])
+AC_DEFINE_UNQUOTED([SPREADCOIN_KERNNAME], ["spreadcoin"], [Filename for spreadcoin optimised kernel])
 
 AC_SUBST(OPENCL_LIBS)
 AC_SUBST(OPENCL_FLAGS)

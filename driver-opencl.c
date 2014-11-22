@@ -1,4 +1,5 @@
 /*
+ * Copyright 2014 Girino Vey!
  * Copyright 2011-2012 Con Kolivas
  * Copyright 2011-2012 Luke Dashjr
  * Copyright 2010 Jeff Garzik
@@ -217,44 +218,8 @@ char *set_thread_concurrency(char *arg)
 
 static enum cl_kernels select_kernel(char *arg)
 {
-	if (!strcmp(arg, ALEXKARNEW_KERNNAME))
-		return KL_ALEXKARNEW;
-	if (!strcmp(arg, ALEXKAROLD_KERNNAME))
-		return KL_ALEXKAROLD;
-	if (!strcmp(arg, CKOLIVAS_KERNNAME))
-		return KL_CKOLIVAS;
-	if (!strcmp(arg, ZUIKKIS_KERNNAME))
-		return KL_ZUIKKIS;
-	if (!strcmp(arg, PSW_KERNNAME))
-		return KL_PSW;
-	if (!strcmp(arg, DARKCOIN_KERNNAME))
-		return KL_DARKCOIN;
-	if (!strcmp(arg, X11MOD_KERNNAME))
-		return KL_X11MOD;
-	if (!strcmp(arg, QUBITCOIN_KERNNAME))
-		return KL_QUBITCOIN;
-	if (!strcmp(arg, QUARKCOIN_KERNNAME))
-		return KL_QUARKCOIN;
-	if (!strcmp(arg, MYRIADCOIN_GROESTL_KERNNAME))
-		return KL_MYRIADCOIN_GROESTL;
-	if (!strcmp(arg, FUGUECOIN_KERNNAME))
-		return KL_FUGUECOIN;
-	if (!strcmp(arg, INKCOIN_KERNNAME))
-		return KL_INKCOIN;
-	if (!strcmp(arg, ANIMECOIN_KERNNAME))
-		return KL_ANIMECOIN;
-	if (!strcmp(arg, GROESTLCOIN_KERNNAME))
-		return KL_GROESTLCOIN;
-	if (!strcmp(arg, SIFCOIN_KERNNAME))
-		return KL_SIFCOIN;
-	if (!strcmp(arg, TWECOIN_KERNNAME))
-		return KL_TWECOIN;
-	if (!strcmp(arg, MARUCOIN_KERNNAME))
-		return KL_MARUCOIN;
-	if (!strcmp(arg, X13MOD_KERNNAME))
-		return KL_X13MOD;
-	if (!strcmp(arg, X13MODOLD_KERNNAME))
-		return KL_X13MODOLD;
+	if (!strcmp(arg, SPREADCOIN_KERNNAME))
+		return KL_SPREADCOIN;
 
 	return KL_NONE;
 }
@@ -275,12 +240,8 @@ char *set_kernel(char *arg)
 	if (kern == KL_NONE)
 		return "Invalid parameter to set_kernel";
 	gpus[device++].kernel = kern;
-	if (kern >= KL_DARKCOIN)
-		dm_mode = DM_BITCOIN;
-	else if(kern >= KL_QUARKCOIN)
-		dm_mode = DM_QUARKCOIN;
-	else
-		dm_mode = DM_LITECOIN;
+//	if (kern >= KL_DARKCOIN)
+	dm_mode = DM_BITCOIN;
 
 	while ((nextptr = strtok(NULL, ",")) != NULL) {
 		kern = select_kernel(nextptr);
@@ -993,32 +954,9 @@ retry: // TODO: refactor
 		gpus[selected].xintensity = 0; // Disable xintensity when enabling intensity
 		gpus[selected].rawintensity = 0; // Disable raw intensity when enabling intensity
 
-		if ((gpus[selected].kernel == KL_X11MOD) || (gpus[selected].kernel == KL_X13MOD) || (gpus[selected].kernel == KL_X13MODOLD)) {
-			for (i = 0; i < mining_threads; ++i) {
-				thr = get_thread(i);
-				cgpu = thr->cgpu;
-				if (cgpu->drv->drv_id != DRIVER_opencl)
-					continue;
-				if (dev_from_id(i) != selected)
-					continue;
-				if (allocateHashBuffer(selected, clStates[thr->id])) {
-				    wlogprint("Intensity on gpu %d set to %d\n", selected, intensity);
-				    applog(LOG_DEBUG, "Pushing sem post to thread %d", thr->id);
-				    cgsem_post(&thr->sem);
-				    pause_dynamic_threads(selected);
-				}
-				else {
-				    gpus[selected].dynamic = tdymanic;
-				    gpus[selected].intensity = tintensity;
-				    gpus[selected].xintensity = txintensity;
-				    gpus[selected].rawintensity = trawintensity;
-				}
-			}
-		}
-		else {
-			wlogprint("Intensity on gpu %d set to %d\n", selected, intensity);
-			pause_dynamic_threads(selected);
-		}
+		wlogprint("Intensity on gpu %d set to %d\n", selected, intensity);
+		pause_dynamic_threads(selected);
+
 		goto retry;
 	} else if (!strncasecmp(&input, "x", 1)) {
 		struct cgpu_info *cgpu;
@@ -1054,32 +992,8 @@ retry: // TODO: refactor
 		gpus[selected].xintensity = xintensity;
 		gpus[selected].rawintensity = 0; // Disable raw intensity when enabling intensity
 
-		if ((gpus[selected].kernel == KL_X11MOD) || (gpus[selected].kernel == KL_X13MOD || (gpus[selected].kernel == KL_X13MODOLD))) {
-			for (i = 0; i < mining_threads; ++i) {
-				thr = get_thread(i);
-				cgpu = thr->cgpu;
-				if (cgpu->drv->drv_id != DRIVER_opencl)
-					continue;
-				if (dev_from_id(i) != selected)
-					continue;
-				if (allocateHashBuffer(selected, clStates[thr->id])) {
-				    wlogprint("Experimental intensity on gpu %d set to %d\n", selected, xintensity);
-				    applog(LOG_DEBUG, "Pushing sem post to thread %d", thr->id);
-				    cgsem_post(&thr->sem);
-				    pause_dynamic_threads(selected);
-				}
-				else {
-				    gpus[selected].dynamic = tdymanic;
-				    gpus[selected].intensity = tintensity;
-				    gpus[selected].xintensity = txintensity;
-				    gpus[selected].rawintensity = trawintensity;
-				}
-			}
-		}
-		else {
-			wlogprint("Experimental intensity on gpu %d set to %d\n", selected, xintensity);
-			pause_dynamic_threads(selected);
-		}
+		wlogprint("Experimental intensity on gpu %d set to %d\n", selected, xintensity);
+		pause_dynamic_threads(selected);
 		goto retry;
 	} else if (!strncasecmp(&input, "a", 1)) {
 		struct cgpu_info *cgpu;
@@ -1115,32 +1029,8 @@ retry: // TODO: refactor
 		gpus[selected].xintensity = 0; // Disable xintensity when enabling intensity
 		gpus[selected].rawintensity = rawintensity;
 
-		if ((gpus[selected].kernel == KL_X11MOD) || (gpus[selected].kernel == KL_X13MOD || (gpus[selected].kernel == KL_X13MODOLD))) {
-			for (i = 0; i < mining_threads; ++i) {
-				thr = get_thread(i);
-				cgpu = thr->cgpu;
-				if (cgpu->drv->drv_id != DRIVER_opencl)
-					continue;
-				if (dev_from_id(i) != selected)
-					continue;
-				if (allocateHashBuffer(selected, clStates[thr->id])) {
-				    wlogprint("Raw ntensity on gpu %d set to %d\n", selected, rawintensity);
-				    applog(LOG_DEBUG, "Pushing sem post to thread %d", thr->id);
-				    cgsem_post(&thr->sem);
-				    pause_dynamic_threads(selected);
-				}
-				else {
-				    gpus[selected].dynamic = tdymanic;
-				    gpus[selected].intensity = tintensity;
-				    gpus[selected].xintensity = txintensity;
-				    gpus[selected].rawintensity = trawintensity;
-				}
-			}
-		}
-		else {
-			wlogprint("Raw ntensity on gpu %d set to %d\n", selected, rawintensity);
-			pause_dynamic_threads(selected);
-		}
+		wlogprint("Raw ntensity on gpu %d set to %d\n", selected, rawintensity);
+		pause_dynamic_threads(selected);
 		goto retry;
 	} else if (!strncasecmp(&input, "r", 1)) {
 		if (selected)
@@ -1240,66 +1130,66 @@ void prepare_work(struct work* work)
         pi32[i] = bswap_32(pi32[i]);
 }
 
-static cl_int queue_sph_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unused cl_uint threads)
+static cl_int queue_spreadcoin_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unused cl_uint threads)
 {
-	cl_kernel *kernel = &clState->kernel;
-	unsigned int num = 0;
 	cl_ulong le_target;
 	cl_int status = 0;
+	cl_uint num;
+	int i;
 
-	//le_target = *(cl_ulong *)(blk->work->device_target + 24);
+//	le_target = *(cl_ulong *)(blk->work->device_target + 24);
 	le_target = le64toh(*(uint64_t *)(blk->work->target + 24));
 
 	status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, sizeof(struct data), /*clState->cldata*/&blk->work->data, 0, NULL,NULL);
+	if (status != CL_SUCCESS) {
+		printf("HERE 1\n");
+	}
 
-	CL_SET_ARG(clState->CLbuffer0);
-	CL_SET_ARG(clState->outputBuffer);
-	CL_SET_ARG(le_target);
+	for (i = 0; i < clState->numkernels; i++) {
+		cl_kernel *kernel = &clState->kernels[i];
+//		cl_uint numargs;
+//		size_t size_arg;
+//		char kname[256];
+//
+//		size_arg = sizeof(cl_uint);
+//		clGetKernelInfo(*kernel, CL_KERNEL_NUM_ARGS, size_arg, &numargs, &size_arg);
+//		size_arg = 255;
+//		clGetKernelInfo(*kernel, CL_KERNEL_FUNCTION_NAME, size_arg, &kname, &size_arg);
+//		printf ("kernel %s has %d args\n", kname, numargs);
 
-	return status;
-}
-
-static cl_int queue_x11mod_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unused cl_uint threads)
-{
-	cl_kernel *kernel;
-	unsigned int num = 0;
-	cl_ulong le_target;
-	cl_int status = 0;
-
-	le_target = be64toh(*(uint64_t *)(blk->work->target + 24));//*(cl_ulong *)(blk->work->device_target + 24);
-	//flip80(clState->cldata, blk->work->data);
-	//status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, 200000, /*clState->cldata*/blk->work->whole_block, 0, NULL,NULL);
-
-//clbuffer, hashes
-	kernel = &clState->kernel_blake;
-	CL_SET_ARG_N(0,clState->CLbuffer0);
-	CL_SET_ARG_N(1,clState->hash_buffer);
-	kernel = &clState->kernel_bmw;
-	CL_SET_ARG_N(0,clState->hash_buffer);
-	kernel = &clState->kernel_groestl;
-	CL_SET_ARG_N(0,clState->hash_buffer);
-	kernel = &clState->kernel_skein;
-	CL_SET_ARG_N(0,clState->hash_buffer);
-	kernel = &clState->kernel_jh;
-	CL_SET_ARG_N(0,clState->hash_buffer);
-	kernel = &clState->kernel_keccak;
-	CL_SET_ARG_N(0,clState->hash_buffer);
-	kernel = &clState->kernel_luffa;
-	CL_SET_ARG_N(0,clState->hash_buffer);
-	kernel = &clState->kernel_cubehash;
-	CL_SET_ARG_N(0,clState->hash_buffer);
-	kernel = &clState->kernel_shavite;
-	CL_SET_ARG_N(0,clState->hash_buffer);
-	kernel = &clState->kernel_simd;
-	CL_SET_ARG_N(0,clState->hash_buffer);
-//hashes, output, target
-	kernel = &clState->kernel_echo;
-	CL_SET_ARG_N(0,clState->hash_buffer);
-	CL_SET_ARG_N(1,clState->outputBuffer);
-	CL_SET_ARG_N(2,le_target);
+		num = 0;
+		CL_SET_ARG(clState->CLbuffer0);
+//		CL_SET_ARG(clState->padbuffer8);
+		CL_SET_ARG(clState->hwbbuffer);
+		CL_SET_ARG(clState->signbuffer);
+		if (i == 1) {
+			CL_SET_ARG(clState->outputBuffer);
+			CL_SET_ARG(le_target);
+		}
+	}
 
 	return status;
 }
+
+//static cl_int queue_sph_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unused cl_uint threads)
+//{
+//	cl_kernel *kernel = &clState->kernel;
+//	unsigned int num = 0;
+//	cl_ulong le_target;
+//	cl_int status = 0;
+//
+//	//le_target = *(cl_ulong *)(blk->work->device_target + 24);
+//	le_target = le64toh(*(uint64_t *)(blk->work->target + 24));
+//
+//	status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, sizeof(struct data), /*clState->cldata*/&blk->work->data, 0, NULL,NULL);
+//
+//	CL_SET_ARG(clState->CLbuffer0);
+//	CL_SET_ARG(clState->outputBuffer);
+//	CL_SET_ARG(le_target);
+//
+//	return status;
+//}
+
 
 static void set_threads_hashes(unsigned int vectors, unsigned int compute_shaders, int64_t *hashes, size_t *globalThreads,
 			       unsigned int minthreads, __maybe_unused int *intensity, __maybe_unused int *xintensity, __maybe_unused int *rawintensity)
@@ -1572,62 +1462,8 @@ static bool opencl_thread_prepare(struct thr_info *thr)
 	if (!cgpu->kname)
 	{
 		switch (clStates[i]->chosen_kernel) {
-			case KL_ALEXKARNEW:
-				cgpu->kname = ALEXKARNEW_KERNNAME;
-				break;
-			case KL_ALEXKAROLD:
-				cgpu->kname = ALEXKAROLD_KERNNAME;
-				break;
-			case KL_CKOLIVAS:
-				cgpu->kname = CKOLIVAS_KERNNAME;
-				break;
-			case KL_ZUIKKIS:
-				cgpu->kname = ZUIKKIS_KERNNAME;
-				break;
-			case KL_PSW:
-				cgpu->kname = PSW_KERNNAME;
-				break;
-			case KL_DARKCOIN:
-				cgpu->kname = DARKCOIN_KERNNAME;
-				break;
-			case KL_QUBITCOIN:
-				cgpu->kname = QUBITCOIN_KERNNAME;
-				break;
-			case KL_QUARKCOIN:
-				cgpu->kname = QUARKCOIN_KERNNAME;
-				break;
-			case KL_MYRIADCOIN_GROESTL:
-				cgpu->kname = MYRIADCOIN_GROESTL_KERNNAME;
-				break;
-			case KL_FUGUECOIN:
-				cgpu->kname = FUGUECOIN_KERNNAME;
-				break;
-			case KL_INKCOIN:
-				cgpu->kname = INKCOIN_KERNNAME;
-				break;
-			case KL_ANIMECOIN:
-				cgpu->kname = ANIMECOIN_KERNNAME;
-				break;
-			case KL_GROESTLCOIN:
-				cgpu->kname = GROESTLCOIN_KERNNAME;
-				break;
-			case KL_SIFCOIN:
-				cgpu->kname = SIFCOIN_KERNNAME;
-				break;
-			case KL_TWECOIN:
-				cgpu->kname = TWECOIN_KERNNAME;
-				break;
-			case KL_MARUCOIN:
-				cgpu->kname = MARUCOIN_KERNNAME;
-				break;
-			case KL_X11MOD:
-				cgpu->kname = X11MOD_KERNNAME;
-				break;
-			case KL_X13MOD:
-				cgpu->kname = X13MOD_KERNNAME;
-				break;
-			case KL_X13MODOLD:
-				cgpu->kname = X13MOD_KERNNAME;
+			case KL_SPREADCOIN:
+				cgpu->kname = SPREADCOIN_KERNNAME;
 				break;
 			default:
 				break;
@@ -1657,21 +1493,8 @@ static bool opencl_thread_init(struct thr_info *thr)
 	}
 
 	switch (clState->chosen_kernel) {
-	case KL_X11MOD:
-		thrdata->queue_kernel_parameters = &queue_x11mod_kernel;
-		break;
-	case KL_DARKCOIN:
-	case KL_QUBITCOIN:
-	case KL_QUARKCOIN:
-	case KL_MYRIADCOIN_GROESTL:
-	case KL_FUGUECOIN:
-	case KL_INKCOIN:
-	case KL_ANIMECOIN:
-	case KL_GROESTLCOIN:
-	case KL_SIFCOIN:
-	case KL_TWECOIN:
-	case KL_MARUCOIN:
-		thrdata->queue_kernel_parameters = &queue_sph_kernel;
+	case KL_SPREADCOIN:
+		thrdata->queue_kernel_parameters = &queue_spreadcoin_kernel;
 		break;
 	default:
 		applog(LOG_ERR, "Failed to choose kernel in opencl_thread_init");
@@ -1710,14 +1533,6 @@ static bool opencl_prepare_work(struct thr_info __maybe_unused *thr, struct work
 
 extern int opt_dynamic_interval;
 
-#define CL_ENQUEUE_KERNEL(KL, GWO) \
-	status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernel_##KL, 1, GWO, globalThreads, localThreads, 0, NULL, NULL); \
-	if (unlikely(status != CL_SUCCESS)) { \
-	    applog(LOG_ERR, "Error %d: Enqueueing kernel %s onto command queue. (clEnqueueNDRangeKernel)", status, #KL); \
-	    return -1; \
-	}
-
-
 static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 				int64_t __maybe_unused max_nonce)
 {
@@ -1725,8 +1540,8 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 	struct opencl_thread_data *thrdata = thr->cgpu_data;
 	struct cgpu_info *gpu = thr->cgpu;
 	_clState *clState = clStates[thr_id];
-	const cl_kernel *kernel = &clState->kernel;
 	const int dynamic_us = opt_dynamic_interval * 1000;
+	int i;
 
 	cl_int status;
 	size_t globalThreads[1];
@@ -1764,117 +1579,23 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 		return -1;
 	}
 
-	if (clState->chosen_kernel == KL_X11MOD) {
-	    if (clState->goffset) {
+	if (clState->goffset) {
 		size_t global_work_offset[1];
-		global_work_offset[0] = work->blk.nonce;
 
-		CL_ENQUEUE_KERNEL(blake, global_work_offset);
-		CL_ENQUEUE_KERNEL(bmw, global_work_offset);
-		CL_ENQUEUE_KERNEL(groestl, global_work_offset);
-		CL_ENQUEUE_KERNEL(skein, global_work_offset);
-		CL_ENQUEUE_KERNEL(jh, global_work_offset);
-		CL_ENQUEUE_KERNEL(keccak, global_work_offset);
-		CL_ENQUEUE_KERNEL(luffa, global_work_offset);
-		CL_ENQUEUE_KERNEL(cubehash, global_work_offset);
-		CL_ENQUEUE_KERNEL(shavite, global_work_offset);
-		CL_ENQUEUE_KERNEL(simd, global_work_offset)
-		CL_ENQUEUE_KERNEL(echo, global_work_offset);
-	    }
-	    else {
-		CL_ENQUEUE_KERNEL(blake, NULL);
-		CL_ENQUEUE_KERNEL(bmw, NULL);
-		CL_ENQUEUE_KERNEL(groestl, NULL);
-		CL_ENQUEUE_KERNEL(skein, NULL);
-		CL_ENQUEUE_KERNEL(jh, NULL);
-		CL_ENQUEUE_KERNEL(keccak, NULL);
-		CL_ENQUEUE_KERNEL(luffa, NULL);
-		CL_ENQUEUE_KERNEL(cubehash, NULL);
-		CL_ENQUEUE_KERNEL(shavite, NULL);
-		CL_ENQUEUE_KERNEL(simd, NULL)
-		CL_ENQUEUE_KERNEL(echo, NULL);
-            }
+		global_work_offset[0] = work->blk.nonce;
+		for (i = 0; i < clState->numkernels && status == CL_SUCCESS; i++) {
+			status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernels[i], 1, global_work_offset,
+					globalThreads, localThreads, 0,  NULL, NULL);
+		}
+	} else {
+		for (i = 0; i < clState->numkernels && status == CL_SUCCESS; i++) {
+			status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernels[i], 1, NULL,
+				globalThreads, localThreads, 0,  NULL, NULL);
+		}
 	}
-	else if (clState->chosen_kernel == KL_X13MOD) {
-	    if (clState->goffset) {
-		size_t global_work_offset[1];
-		global_work_offset[0] = work->blk.nonce;
-
-		CL_ENQUEUE_KERNEL(blake, global_work_offset);
-		CL_ENQUEUE_KERNEL(bmw, global_work_offset);
-		CL_ENQUEUE_KERNEL(groestl, global_work_offset);
-		CL_ENQUEUE_KERNEL(skein, global_work_offset);
-		CL_ENQUEUE_KERNEL(jh, global_work_offset);
-		CL_ENQUEUE_KERNEL(keccak, global_work_offset);
-		CL_ENQUEUE_KERNEL(luffa, global_work_offset);
-		CL_ENQUEUE_KERNEL(cubehash, global_work_offset);
-		CL_ENQUEUE_KERNEL(shavite, global_work_offset);
-		CL_ENQUEUE_KERNEL(simd, global_work_offset)
-		CL_ENQUEUE_KERNEL(echo, global_work_offset);
-		CL_ENQUEUE_KERNEL(hamsi, global_work_offset);
-		CL_ENQUEUE_KERNEL(fugue, global_work_offset);
-	    }
-	    else {
-		CL_ENQUEUE_KERNEL(blake, NULL);
-		CL_ENQUEUE_KERNEL(bmw, NULL);
-		CL_ENQUEUE_KERNEL(groestl, NULL);
-		CL_ENQUEUE_KERNEL(skein, NULL);
-		CL_ENQUEUE_KERNEL(jh, NULL);
-		CL_ENQUEUE_KERNEL(keccak, NULL);
-		CL_ENQUEUE_KERNEL(luffa, NULL);
-		CL_ENQUEUE_KERNEL(cubehash, NULL);
-		CL_ENQUEUE_KERNEL(shavite, NULL);
-		CL_ENQUEUE_KERNEL(simd, NULL)
-		CL_ENQUEUE_KERNEL(echo, NULL);
-		CL_ENQUEUE_KERNEL(hamsi, NULL);
-		CL_ENQUEUE_KERNEL(fugue, NULL);
-            }
-	}
-	else if (clState->chosen_kernel == KL_X13MODOLD) {
-	    if (clState->goffset) {
-		size_t global_work_offset[1];
-		global_work_offset[0] = work->blk.nonce;
-
-		CL_ENQUEUE_KERNEL(blake, global_work_offset);
-		CL_ENQUEUE_KERNEL(bmw, global_work_offset);
-		CL_ENQUEUE_KERNEL(groestl, global_work_offset);
-		CL_ENQUEUE_KERNEL(skein, global_work_offset);
-		CL_ENQUEUE_KERNEL(jh, global_work_offset);
-		CL_ENQUEUE_KERNEL(keccak, global_work_offset);
-		CL_ENQUEUE_KERNEL(luffa, global_work_offset);
-		CL_ENQUEUE_KERNEL(cubehash, global_work_offset);
-		CL_ENQUEUE_KERNEL(shavite, global_work_offset);
-		CL_ENQUEUE_KERNEL(simd, global_work_offset)
-		CL_ENQUEUE_KERNEL(echo_hamsi_fugue, global_work_offset);
-	    }
-	    else {
-		CL_ENQUEUE_KERNEL(blake, NULL);
-		CL_ENQUEUE_KERNEL(bmw, NULL);
-		CL_ENQUEUE_KERNEL(groestl, NULL);
-		CL_ENQUEUE_KERNEL(skein, NULL);
-		CL_ENQUEUE_KERNEL(jh, NULL);
-		CL_ENQUEUE_KERNEL(keccak, NULL);
-		CL_ENQUEUE_KERNEL(luffa, NULL);
-		CL_ENQUEUE_KERNEL(cubehash, NULL);
-		CL_ENQUEUE_KERNEL(shavite, NULL);
-		CL_ENQUEUE_KERNEL(simd, NULL)
-		CL_ENQUEUE_KERNEL(echo_hamsi_fugue, NULL);
-            }
-	}
-	else {
-	    if (clState->goffset) {
-		size_t global_work_offset[1];
-
-		global_work_offset[0] = work->blk.nonce;
-		status = clEnqueueNDRangeKernel(clState->commandQueue, *kernel, 1, global_work_offset,
-						globalThreads, localThreads, 0,  NULL, NULL);
-	    } else
-		status = clEnqueueNDRangeKernel(clState->commandQueue, *kernel, 1, NULL,
-						globalThreads, localThreads, 0,  NULL, NULL);
-	    if (unlikely(status != CL_SUCCESS)) {
+	if (unlikely(status != CL_SUCCESS)) {
 		applog(LOG_ERR, "Error %d: Enqueueing kernel onto command queue. (clEnqueueNDRangeKernel)", status);
 		return -1;
-	    }
 	}
 
 	status = clEnqueueReadBuffer(clState->commandQueue, clState->outputBuffer, CL_FALSE, 0,
@@ -1916,51 +1637,10 @@ static void opencl_thread_shutdown(struct thr_info *thr)
 	const int thr_id = thr->id;
 	_clState *clState = clStates[thr_id];
 
-	if (clState->chosen_kernel == KL_X11MOD) {
-	    clReleaseKernel(clState->kernel_blake);
-	    clReleaseKernel(clState->kernel_bmw);
-	    clReleaseKernel(clState->kernel_groestl);
-	    clReleaseKernel(clState->kernel_skein);
-	    clReleaseKernel(clState->kernel_jh);
-	    clReleaseKernel(clState->kernel_keccak);
-	    clReleaseKernel(clState->kernel_luffa);
-	    clReleaseKernel(clState->kernel_cubehash);
-	    clReleaseKernel(clState->kernel_shavite);
-	    clReleaseKernel(clState->kernel_simd);
-	    clReleaseKernel(clState->kernel_echo);
-	}
-	else if (clState->chosen_kernel == KL_X13MOD) {
-	    clReleaseKernel(clState->kernel_blake);
-	    clReleaseKernel(clState->kernel_bmw);
-	    clReleaseKernel(clState->kernel_groestl);
-	    clReleaseKernel(clState->kernel_skein);
-	    clReleaseKernel(clState->kernel_jh);
-	    clReleaseKernel(clState->kernel_keccak);
-	    clReleaseKernel(clState->kernel_luffa);
-	    clReleaseKernel(clState->kernel_cubehash);
-	    clReleaseKernel(clState->kernel_shavite);
-	    clReleaseKernel(clState->kernel_simd);
-	    clReleaseKernel(clState->kernel_echo);
-	    clReleaseKernel(clState->kernel_hamsi);
-	    clReleaseKernel(clState->kernel_fugue);
-	}
-	else if (clState->chosen_kernel == KL_X13MOD) {
-	    clReleaseKernel(clState->kernel_blake);
-	    clReleaseKernel(clState->kernel_bmw);
-	    clReleaseKernel(clState->kernel_groestl);
-	    clReleaseKernel(clState->kernel_skein);
-	    clReleaseKernel(clState->kernel_jh);
-	    clReleaseKernel(clState->kernel_keccak);
-	    clReleaseKernel(clState->kernel_luffa);
-	    clReleaseKernel(clState->kernel_cubehash);
-	    clReleaseKernel(clState->kernel_shavite);
-	    clReleaseKernel(clState->kernel_simd);
-	    clReleaseKernel(clState->kernel_echo_hamsi_fugue);
-	}
-	else {
-	    clReleaseKernel(clState->kernel);
-	}
 
+	for (; clState->numkernels > 0; clState->numkernels--) {
+		clReleaseKernel(clState->kernels[clState->numkernels-1]);
+	}
 	clReleaseProgram(clState->program);
 	clReleaseCommandQueue(clState->commandQueue);
 	clReleaseContext(clState->context);

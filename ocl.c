@@ -126,7 +126,7 @@ int clDevicesNum(void) {
 		status = clGetPlatformInfo(platform, CL_PLATFORM_VERSION, sizeof(pbuff), pbuff, NULL);
 		if (status == CL_SUCCESS)
 			applog(LOG_INFO, "CL Platform %d version: %s", i, pbuff);
-		status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices);
+		status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_, 0, NULL, &numDevices);
 		if (status != CL_SUCCESS) {
 			applog(LOG_INFO, "Error %d: Getting Device IDs (num)", status);
 			continue;
@@ -140,7 +140,7 @@ int clDevicesNum(void) {
 			unsigned int j;
 			cl_device_id *devices = (cl_device_id *)malloc(numDevices*sizeof(cl_device_id));
 
-			clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices, NULL);
+			clGetDeviceIDs(platform, CL_DEVICE_TYPE_, numDevices, devices, NULL);
 			for (j = 0; j < numDevices; j++) {
 				clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(pbuff), pbuff, NULL);
 				applog(LOG_INFO, "\t%i\t%s", j, pbuff);
@@ -212,54 +212,11 @@ void patch_opcodes(char *w, unsigned remaining)
 	applog(LOG_DEBUG, "Patched a total of %i BFI_INT instructions", patched);
 }
 
-#define CL_CREATE_KERNEL(name) \
-	clState->kernel_##name = clCreateKernel(clState->program, #name, &status); \
-	if (status != CL_SUCCESS) { \
-	    applog(LOG_ERR, "Error %d: Creating Kernel from program. (clCreateKernel #name)", status); \
-	    return NULL; \
-	}
-
-bool allocateHashBuffer(unsigned int gpu, _clState *clState) {
-	cl_int status;
-
-	struct cgpu_info *cgpu = &gpus[gpu];
-	unsigned int threads = 0;
-
-	while (threads < clState->wsize) {
-		if (cgpu->rawintensity > 0) {
-			threads = cgpu->rawintensity;
-		} else if (cgpu->xintensity > 0) {
-			threads = clState->compute_shaders * cgpu->xintensity;
-		} else {
-			threads = 1 << cgpu->intensity;
-		}
-		if (threads < clState->wsize) {
-			if (likely(cgpu->intensity < MAX_INTENSITY))
-				cgpu->intensity++;
-			else
-				threads = clState->wsize;
-		}
-	}
-
-	unsigned long int bufsize = (64 * threads);
-
-	if ((bufsize > cgpu->max_alloc) || (bufsize == 0)) {
-		applog(LOG_WARNING, "Maximum buffer memory device %d supports says %lu",
-			   gpu, (long unsigned int)(cgpu->max_alloc));
-		applog(LOG_WARNING, "Your settings come to %d", (int)bufsize);
-		return false;
-	}
-	applog(LOG_DEBUG, "Creating hash buffer sized %d", (int)bufsize);
-
-	clState->hash_buffer = NULL;
-	clState->hash_buffer = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, bufsize, NULL, &status);
-	if (status != CL_SUCCESS && !clState->hash_buffer) {
-		applog(LOG_ERR, "Error %d: clCreateBuffer (hash_buffer), decrease intensity/xintensity/rawintensity", status);
-		return false;
-	}
-
-	return true;
-}
+const char* spread_kernel_names[] = {
+		"signature",
+		"spreadX11",
+		NULL
+};
 
 _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 {
@@ -313,7 +270,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 	if (status == CL_SUCCESS)
 		applog(LOG_INFO, "CL Platform version: %s", vbuff);
 
-	status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices);
+	status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_, 0, NULL, &numDevices);
 	if (status != CL_SUCCESS) {
 		applog(LOG_ERR, "Error %d: Getting Device IDs (num)", status);
 		return NULL;
@@ -324,7 +281,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 
 		/* Now, get the device list data */
 
-		status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices, NULL);
+		status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_, numDevices, devices, NULL);
 		if (status != CL_SUCCESS) {
 			applog(LOG_ERR, "Error %d: Getting Device IDs (list)", status);
 			return NULL;
@@ -361,7 +318,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 
 	cl_context_properties cps[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0 };
 
-	clState->context = clCreateContextFromType(cps, CL_DEVICE_TYPE_GPU, NULL, NULL, &status);
+	clState->context = clCreateContextFromType(cps, CL_DEVICE_TYPE_, NULL, NULL, &status);
 	if (status != CL_SUCCESS) {
 		applog(LOG_ERR, "Error %d: Creating Context. (clCreateContextFromType)", status);
 		return NULL;
@@ -370,13 +327,8 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 	/////////////////////////////////////////////////////////////////
 	// Create an OpenCL command queue
 	/////////////////////////////////////////////////////////////////
-	if ((cgpu->kernel == KL_X11MOD) || (cgpu->kernel == KL_X13MOD) || (cgpu->kernel == KL_X13MODOLD))
-		clState->commandQueue = clCreateCommandQueue(clState->context, devices[gpu],
-							     0, &status);
-	else
-		clState->commandQueue = clCreateCommandQueue(clState->context, devices[gpu],
-							     CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &status);
-
+	clState->commandQueue = clCreateCommandQueue(clState->context, devices[gpu],
+						     CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &status);
 	if (status != CL_SUCCESS) /* Try again without OOE enable */
 		clState->commandQueue = clCreateCommandQueue(clState->context, devices[gpu], 0 , &status);
 	if (status != CL_SUCCESS) {
@@ -398,7 +350,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 	find = strstr(extensions, camo);
 	if (find)
 		clState->hasBitAlign = true;
-
+		
 	/* Check for OpenCL >= 1.0 support, needed for global offset parameter usage. */
 	char * devoclver = malloc(1024);
 	const char * ocl10 = "OpenCL 1.0";
@@ -430,7 +382,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 		return NULL;
 	}
 	applog(LOG_DEBUG, "Max work group size reported %d", (int)(clState->max_work_size));
-
+	
 	size_t compute_units = 0;
 	status = clGetDeviceInfo(devices[gpu], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(size_t), (void *)&compute_units, NULL);
 	if (status != CL_SUCCESS) {
@@ -461,8 +413,8 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 	char numbuf[16];
 
 	if (cgpu->kernel == KL_NONE) {
-		applog(LOG_INFO, "Selecting kernel ckolivas");
-		clState->chosen_kernel = KL_CKOLIVAS;
+		applog(LOG_INFO, "Selecting kernel spreadcoin");
+		clState->chosen_kernel = KL_SPREADCOIN;
 		cgpu->kernel = clState->chosen_kernel;
 	} else {
 		clState->chosen_kernel = cgpu->kernel;
@@ -480,103 +432,10 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 	cgpu->vwidth = 1;
 
 	switch (clState->chosen_kernel) {
-		case KL_ALEXKARNEW:
-			applog(LOG_WARNING, "Kernel alexkarnew is experimental.");
-			strcpy(filename, ALEXKARNEW_KERNNAME".cl");
-			strcpy(binaryfilename, ALEXKARNEW_KERNNAME);
-			break;
-		case KL_ALEXKAROLD:
-			applog(LOG_WARNING, "Kernel alexkarold is experimental.");
-			strcpy(filename, ALEXKAROLD_KERNNAME".cl");
-			strcpy(binaryfilename, ALEXKAROLD_KERNNAME);
-			break;
-		case KL_CKOLIVAS:
-			strcpy(filename, CKOLIVAS_KERNNAME".cl");
-			strcpy(binaryfilename, CKOLIVAS_KERNNAME);
-			break;
-		case KL_PSW:
-			applog(LOG_WARNING, "Kernel psw is experimental.");
-			strcpy(filename, PSW_KERNNAME".cl");
-			strcpy(binaryfilename, PSW_KERNNAME);
-			break;
-		case KL_ZUIKKIS:
-			applog(LOG_WARNING, "Kernel zuikkis is experimental.");
-			strcpy(filename, ZUIKKIS_KERNNAME".cl");
-			strcpy(binaryfilename, ZUIKKIS_KERNNAME);
-			/* Kernel only supports lookup-gap 2 */
-			cgpu->lookup_gap = 2;
-			/* Kernel only supports worksize 256 */
-			cgpu->work_size = 256;
-			break;
-		case KL_DARKCOIN:
-			applog(LOG_WARNING, "Loading SpreadCoin kernel");
-			strcpy(filename, DARKCOIN_KERNNAME".cl");
-			strcpy(binaryfilename, DARKCOIN_KERNNAME);
-			break;
-		case KL_QUBITCOIN:
-			applog(LOG_WARNING, "Kernel qubitcoin is experimental.");
-			strcpy(filename, QUBITCOIN_KERNNAME".cl");
-			strcpy(binaryfilename, QUBITCOIN_KERNNAME);
-			break;
-		case KL_QUARKCOIN:
-			applog(LOG_WARNING, "Kernel quarkcoin is experimental.");
-			strcpy(filename, QUARKCOIN_KERNNAME".cl");
-			strcpy(binaryfilename, QUARKCOIN_KERNNAME);
-			break;
-		case KL_MYRIADCOIN_GROESTL:
-			applog(LOG_WARNING, "Kernel myriadcoin-groestl is experimental.");
-			strcpy(filename, MYRIADCOIN_GROESTL_KERNNAME".cl");
-			strcpy(binaryfilename, MYRIADCOIN_GROESTL_KERNNAME);
-			break;
-		case KL_FUGUECOIN:
-			applog(LOG_WARNING, "Kernel fuguecoin is experimental.");
-			strcpy(filename, FUGUECOIN_KERNNAME".cl");
-			strcpy(binaryfilename, FUGUECOIN_KERNNAME);
-			break;
-		case KL_INKCOIN:
-			applog(LOG_WARNING, "Kernel inkcoin is experimental.");
-			strcpy(filename, INKCOIN_KERNNAME".cl");
-			strcpy(binaryfilename, INKCOIN_KERNNAME);
-			break;
-		case KL_ANIMECOIN:
-			applog(LOG_WARNING, "Kernel animecoin is experimental.");
-			strcpy(filename, ANIMECOIN_KERNNAME".cl");
-			strcpy(binaryfilename, ANIMECOIN_KERNNAME);
-			break;
-		case KL_GROESTLCOIN:
-			applog(LOG_WARNING, "Kernel groestlcoin is experimental.");
-			strcpy(filename, GROESTLCOIN_KERNNAME".cl");
-			strcpy(binaryfilename, GROESTLCOIN_KERNNAME);
-			break;
-		case KL_SIFCOIN:
-			applog(LOG_WARNING, "Kernel sifcoin is experimental.");
-			strcpy(filename, SIFCOIN_KERNNAME".cl");
-			strcpy(binaryfilename, SIFCOIN_KERNNAME);
-			break;
-		case KL_TWECOIN:
-			applog(LOG_WARNING, "Kernel twecoin is experimental.");
-			strcpy(filename, TWECOIN_KERNNAME".cl");
-			strcpy(binaryfilename, TWECOIN_KERNNAME);
-			break;
-		case KL_MARUCOIN:
-			applog(LOG_WARNING, "Kernel marucoin is experimental.");
-			strcpy(filename, MARUCOIN_KERNNAME".cl");
-			strcpy(binaryfilename, MARUCOIN_KERNNAME);
-			break;
-		case KL_X11MOD:
-			applog(LOG_WARNING, "Kernel x11mod is experimental.");
-			strcpy(filename, X11MOD_KERNNAME".cl");
-			strcpy(binaryfilename, X11MOD_KERNNAME);
-			break;
-		case KL_X13MOD:
-			applog(LOG_WARNING, "Kernel x13mod is experimental.");
-			strcpy(filename, X13MOD_KERNNAME".cl");
-			strcpy(binaryfilename, X13MOD_KERNNAME);
-			break;
-		case KL_X13MODOLD:
-			applog(LOG_WARNING, "Kernel x13mod (AMD HD 5xxx/6xxx) is experimental.");
-			strcpy(filename, X13MOD_KERNNAME".cl");
-			strcpy(binaryfilename, X13MODOLD_KERNNAME);
+		case KL_SPREADCOIN:
+			applog(LOG_WARNING, "Kernel spreadcoin is experimental.");
+			strcpy(filename, SPREADCOIN_KERNNAME".cl");
+			strcpy(binaryfilename, SPREADCOIN_KERNNAME);
 			break;
 		case KL_NONE: /* Shouldn't happen */
 			break;
@@ -711,14 +570,9 @@ build:
 	/* create a cl program executable for all the devices specified */
 	char *CompilerOptions = calloc(1, 256);
 
-	if (clState->chosen_kernel == KL_X13MODOLD)
-		sprintf(CompilerOptions, "-I \"%s\" -I \"%s\" -I \"%skernel\" -I \".\" -D LOOKUP_GAP=%d -D CONCURRENT_THREADS=%d -D WORKSIZE=%d -D X13MODOLD",
-			opt_kernel_path, sgminer_path, sgminer_path,
-			cgpu->lookup_gap, (unsigned int)cgpu->thread_concurrency, (int)clState->wsize);
-	else
-		sprintf(CompilerOptions, "-I \"%s\" -I \"%s\" -I \"%skernel\" -I \".\" -D LOOKUP_GAP=%d -D CONCURRENT_THREADS=%d -D WORKSIZE=%d",
-			opt_kernel_path, sgminer_path, sgminer_path,
-			cgpu->lookup_gap, (unsigned int)cgpu->thread_concurrency, (int)clState->wsize);
+	sprintf(CompilerOptions, "-I \"%s\" -I \"%s\" -I \"%skernel\" -I \".\" -D LOOKUP_GAP=%d -D CONCURRENT_THREADS=%d -D WORKSIZE=%d",
+		opt_kernel_path, sgminer_path, sgminer_path,
+		cgpu->lookup_gap, (unsigned int)cgpu->thread_concurrency, (int)clState->wsize);
 
 	applog(LOG_DEBUG, "Setting worksize to %d", (int)(clState->wsize));
 	if (clState->vwidth > 1)
@@ -901,82 +755,59 @@ built:
 	}
 
 	/* get a kernel object handle for a kernel with the given name */
-	if (clState->chosen_kernel == KL_X11MOD) {
-	    CL_CREATE_KERNEL(blake);
-	    CL_CREATE_KERNEL(bmw);
-	    CL_CREATE_KERNEL(groestl);
-	    CL_CREATE_KERNEL(skein);
-	    CL_CREATE_KERNEL(jh);
-	    CL_CREATE_KERNEL(keccak);
-	    CL_CREATE_KERNEL(luffa);
-	    CL_CREATE_KERNEL(cubehash);
-	    CL_CREATE_KERNEL(shavite);
-	    CL_CREATE_KERNEL(simd);
-	    CL_CREATE_KERNEL(echo);
+	int ij;
+	status = CL_SUCCESS;
+	clState->numkernels = 0;
+	for (ij = 0; ij < 20 && spread_kernel_names[ij] != NULL && status == CL_SUCCESS; ij++) {
+		clState->kernels[ij] = clCreateKernel(clState->program, spread_kernel_names[ij], &status);
+		clState->numkernels++;
 	}
-	else if (clState->chosen_kernel == KL_X13MOD) {
-	    CL_CREATE_KERNEL(blake);
-	    CL_CREATE_KERNEL(bmw);
-	    CL_CREATE_KERNEL(groestl);
-	    CL_CREATE_KERNEL(skein);
-	    CL_CREATE_KERNEL(jh);
-	    CL_CREATE_KERNEL(keccak);
-	    CL_CREATE_KERNEL(luffa);
-	    CL_CREATE_KERNEL(cubehash);
-	    CL_CREATE_KERNEL(shavite);
-	    CL_CREATE_KERNEL(simd);
-	    CL_CREATE_KERNEL(echo);
-	    CL_CREATE_KERNEL(hamsi);
-	    CL_CREATE_KERNEL(fugue);
-	}
-	else if (clState->chosen_kernel == KL_X13MODOLD) {
-	    CL_CREATE_KERNEL(blake);
-	    CL_CREATE_KERNEL(bmw);
-	    CL_CREATE_KERNEL(groestl);
-	    CL_CREATE_KERNEL(skein);
-	    CL_CREATE_KERNEL(jh);
-	    CL_CREATE_KERNEL(keccak);
-	    CL_CREATE_KERNEL(luffa);
-	    CL_CREATE_KERNEL(cubehash);
-	    CL_CREATE_KERNEL(shavite);
-	    CL_CREATE_KERNEL(simd);
-	    CL_CREATE_KERNEL(echo_hamsi_fugue);
-	}
-	else {
-	    clState->kernel = clCreateKernel(clState->program, "search", &status);
-	    if (status != CL_SUCCESS) {
+	if (status != CL_SUCCESS) {
 		applog(LOG_ERR, "Error %d: Creating Kernel from program. (clCreateKernel)", status);
 		return NULL;
-	    }
 	}
 
-	if ((cgpu->kernel == KL_X11MOD) || (cgpu->kernel == KL_X13MOD) || (cgpu->kernel == KL_X13MODOLD)) {
-		if (!allocateHashBuffer(gpu, clState))
-			return NULL;
+	size_t ipt = (1024 / cgpu->lookup_gap + (1024 % cgpu->lookup_gap > 0));
+	size_t bufsize = 128 * ipt * cgpu->thread_concurrency;
+	// adjusts for higher intensities
+	if (bufsize < (64UL*(1UL<<cgpu->intensity))) {
+		applog(LOG_WARNING, "Buffer might be too small, adjusting fomr %zu to %lu", bufsize, (64UL*(1UL<<cgpu->intensity)));
+		bufsize = (64UL*(1UL<<cgpu->intensity));
 	}
-	else {
-		size_t ipt = (1024 / cgpu->lookup_gap + (1024 % cgpu->lookup_gap > 0));
-		size_t bufsize = 128 * ipt * cgpu->thread_concurrency;
 
-		/* Use the max alloc value which has been rounded to a power of
-		 * 2 greater >= required amount earlier */
-		if (bufsize > cgpu->max_alloc) {
-			applog(LOG_WARNING, "Maximum buffer memory device %d supports says %lu",
-				   gpu, (long unsigned int)(cgpu->max_alloc));
-			applog(LOG_WARNING, "Your scrypt settings come to %d", (int)bufsize);
-		}
-		applog(LOG_DEBUG, "Creating scrypt buffer sized %d", (int)bufsize);
-		clState->padbufsize = bufsize;
+	/* Use the max alloc value which has been rounded to a power of
+	 * 2 greater >= required amount earlier */
+	if (bufsize > cgpu->max_alloc) {
+		applog(LOG_WARNING, "Maximum buffer memory device %d supports says %lu",
+			   gpu, (long unsigned int)(cgpu->max_alloc));
+		applog(LOG_WARNING, "Your scrypt settings come to %d", (int)bufsize);
+	}
+	applog(LOG_DEBUG, "Creating scrypt buffer sized %d", (int)bufsize);
+	clState->padbufsize = bufsize;
 
-		/* This buffer is weird and might work to some degree even if
-		 * the create buffer call has apparently failed, so check if we
-		 * get anything back before we call it a failure. */
-		clState->padbuffer8 = NULL;
-		clState->padbuffer8 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, bufsize, NULL, &status);
-		if (status != CL_SUCCESS && !clState->padbuffer8) {
-			applog(LOG_ERR, "Error %d: clCreateBuffer (padbuffer8), decrease TC or increase LG", status);
-			return NULL;
-		}
+	/* This buffer is weird and might work to some degree even if
+	 * the create buffer call has apparently failed, so check if we
+	 * get anything back before we call it a failure. */
+	clState->padbuffer8 = NULL;
+	clState->padbuffer8 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, bufsize, NULL, &status);
+	if (status != CL_SUCCESS && !clState->padbuffer8) {
+		applog(LOG_ERR, "Error %d: clCreateBuffer (padbuffer8), decrease TC or increase LG", status);
+		return NULL;
+	}
+
+	// calculate sizes of sign and hash buffers
+	size_t num_signs = (clState->padbufsize / (64 * 64)) + 1;
+	clState->signbufsize = 5 * 8 * num_signs; //(5 blocks of 8 bytes)
+	clState->hwbbufsize = 4 * 8 * num_signs; //(5 blocks of 8 bytes)
+	clState->signbuffer = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, clState->signbufsize, NULL, &status);
+	if (status != CL_SUCCESS) {
+		applog(LOG_ERR, "Error %d: clCreateBuffer (signbuffer)", status);
+		return NULL;
+	}
+	clState->hwbbuffer = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, clState->hwbbufsize, NULL, &status);
+	if (status != CL_SUCCESS) {
+		applog(LOG_ERR, "Error %d: clCreateBuffer (hwbbuffer)", status);
+		return NULL;
 	}
 
 	clState->CLbuffer0 = clCreateBuffer(clState->context, CL_MEM_READ_ONLY, sizeof(struct data), NULL, &status);
@@ -990,8 +821,6 @@ built:
 		applog(LOG_ERR, "Error %d: clCreateBuffer (outputBuffer)", status);
 		return NULL;
 	}
-
-
 
 	return clState;
 }

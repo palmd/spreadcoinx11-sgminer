@@ -29,6 +29,10 @@
  * @author   phm <phm@inbox.com>
  */
 
+#ifndef __OPENCL_VERSION__
+#include "OpenCLKernel.hpp"
+#endif
+
 #ifndef DARKCOIN_CL
 #define DARKCOIN_CL
 
@@ -107,7 +111,7 @@ typedef long sph_s64;
 #endif
 
 
-void mul256(uint32_t c[16], __global const uint32_t a[8], const uint32_t b[8])
+void mul256(uint32_t c[16], __global const uint32_t *a, const uint32_t b[8])
 {
     uint64_t r = 0;
     uint8_t carry = 0;
@@ -192,41 +196,28 @@ void reverse2(uint8_t* p)
     }
 }
 
+typedef union {
+    unsigned char h1[64];
+    uint h4[16];
+    ulong h8[8];
+} hash_t;
+
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search(__global const unsigned char* block2, volatile __global uint* output, const ulong target)
+__kernel void signature(__global const unsigned char* block2, __global uint64_t *hashWholeBlock_big, __global uint64_t *signbe_big)
 {
-    union {
-        unsigned char h1[64];
-        uint h4[16];
-        ulong h8[8];
-    } hash;
-
-    __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
-    int init = get_local_id(0);
-    int step = get_local_size(0);
-    for (int i = init; i < 256; i += step)
-    {
-        AES0[i] = AES0_C[i];
-        AES1[i] = AES1_C[i];
-        AES2[i] = AES2_C[i];
-        AES3[i] = AES3_C[i];
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    __global const unsigned char* block = block2 + 64;
-    __global const unsigned char* kinv = block2;
-    __global const unsigned char* prk = block2 + 32;
 
     uint32_t full_nonce = get_global_id(0);
     uint32_t high_nonce = full_nonce & ~((uint32_t)0x3F);
     uint32_t low_nonce = full_nonce & 0x3F;
 
-    __local uint64_t hashWholeBlock_big[4*WORKSIZE/64];
-    __local uint64_t *hashWholeBlock = hashWholeBlock_big + (4*(init/64));
-    __local uint64_t signbe_big[5*WORKSIZE/64];
-    __local uint64_t *signbe = signbe_big + (5*(init/64));
-    
-    if ((init & 0x3F) == 0) 
+	__global const unsigned char* block = block2 + 64;
+    __global const unsigned char* kinv = block2;
+    __global const unsigned char* prk = block2 + 32;
+
+    __global uint64_t *hashWholeBlock = hashWholeBlock_big + (4*(high_nonce/64));
+    __global uint64_t *signbe = signbe_big + (5*(high_nonce/64));
+
+    if ((high_nonce & 0x3F) == 0)
     {
 
     const uint32_t disorder[8] = {801750719, 1076732275, 1354194884, 1162945305, 1, 0, 0, 0};
@@ -524,6 +515,35 @@ __kernel void search(__global const unsigned char* block2, volatile __global uin
 
     } // first block
     barrier(CLK_LOCAL_MEM_FENCE);
+}
+
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__kernel void spreadX11(__global const unsigned char* block2, __global uint64_t *hashWholeBlock_big, __global uint64_t *signbe_big, volatile __global uint* output, const ulong target)
+{
+
+	hash_t hash;
+    __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
+    int init = get_local_id(0);
+    int step = get_local_size(0);
+    for (int i = init; i < 256; i += step)
+    {
+        AES0[i] = AES0_C[i];
+        AES1[i] = AES1_C[i];
+        AES2[i] = AES2_C[i];
+        AES3[i] = AES3_C[i];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+
+
+    uint32_t full_nonce = get_global_id(0);
+    uint32_t high_nonce = full_nonce & ~((uint32_t)0x3F);
+    uint32_t low_nonce = full_nonce & 0x3F;
+
+    __global uint64_t *hashWholeBlock = hashWholeBlock_big + (4*(high_nonce/64));
+    __global uint64_t *signbe = signbe_big + (5*(high_nonce/64));
+
+    __global const unsigned char* block = block2 + 64;
 
     //for (uint32_t low_nonce = 0; low_nonce < 64; low_nonce++)
     //{

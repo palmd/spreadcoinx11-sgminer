@@ -4304,62 +4304,8 @@ void write_config(FILE *fcfg)
 			switch (gpus[i].kernel) {
 				case KL_NONE: // Shouldn't happen
 					break;
-				case KL_ALEXKARNEW:
-					fprintf(fcfg, ALEXKARNEW_KERNNAME);
-					break;
-				case KL_ALEXKAROLD:
-					fprintf(fcfg, ALEXKAROLD_KERNNAME);
-					break;
-				case KL_CKOLIVAS:
-					fprintf(fcfg, CKOLIVAS_KERNNAME);
-					break;
-				case KL_PSW:
-					fprintf(fcfg, PSW_KERNNAME);
-					break;
-				case KL_ZUIKKIS:
-					fprintf(fcfg, ZUIKKIS_KERNNAME);
-					break;
-				case KL_DARKCOIN:
-					fprintf(fcfg, DARKCOIN_KERNNAME);
-					break;
-				case KL_QUBITCOIN:
-					fprintf(fcfg, QUBITCOIN_KERNNAME);
-					break;
-				case KL_QUARKCOIN:
-					fprintf(fcfg, QUARKCOIN_KERNNAME);
-					break;
-				case KL_MYRIADCOIN_GROESTL:
-					fprintf(fcfg, MYRIADCOIN_GROESTL_KERNNAME);
-					break;
-				case KL_FUGUECOIN:
-					fprintf(fcfg, FUGUECOIN_KERNNAME);
-					break;
-				case KL_INKCOIN:
-					fprintf(fcfg, INKCOIN_KERNNAME);
-					break;
-				case KL_ANIMECOIN:
-					fprintf(fcfg, ANIMECOIN_KERNNAME);
-					break;
-				case KL_GROESTLCOIN:
-					fprintf(fcfg, GROESTLCOIN_KERNNAME);
-					break;
-				case KL_SIFCOIN:
-					fprintf(fcfg, SIFCOIN_KERNNAME);
-					break;
-				case KL_TWECOIN:
-					fprintf(fcfg, TWECOIN_KERNNAME);
-					break;
-				case KL_MARUCOIN:
-					fprintf(fcfg, MARUCOIN_KERNNAME);
-					break;
-				case KL_X11MOD:
-					fprintf(fcfg, X11MOD_KERNNAME);
-					break;
-				case KL_X13MOD:
-					fprintf(fcfg, X13MOD_KERNNAME);
-					break;
-				case KL_X13MODOLD:
-					fprintf(fcfg, X13MODOLD_KERNNAME);
+				case KL_SPREADCOIN:
+					fprintf(fcfg, SPREADCOIN_KERNNAME);
 					break;
 			}
 		}
@@ -6024,10 +5970,10 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
 	cg_dwlock(&pool->data_lock);
 
 	/* Generate merkle root */
-	if (gpus[0].kernel == KL_FUGUECOIN || gpus[0].kernel == KL_GROESTLCOIN || gpus[0].kernel == KL_TWECOIN)
-		sha256(pool->coinbase, pool->swork.cb_len, merkle_root);
-	else
-		gen_hash(pool->coinbase, merkle_root, pool->swork.cb_len);
+//	if (gpus[0].kernel == KL_FUGUECOIN || gpus[0].kernel == KL_GROESTLCOIN || gpus[0].kernel == KL_TWECOIN)
+//		sha256(pool->coinbase, pool->swork.cb_len, merkle_root);
+//	else
+	gen_hash(pool->coinbase, merkle_root, pool->swork.cb_len);
 	memcpy(merkle_sha, merkle_root, 32);
 	for (i = 0; i < pool->swork.merkles; i++) {
 		memcpy(merkle_sha + 32, pool->swork.merkle_bin[i], 32);
@@ -7999,7 +7945,7 @@ int main(int argc, char *argv[])
 	opt_register_table(opt_cmdline_table,
 			   "Options for command line only");
 
-    set_kernel("spreadcoin");
+//    set_kernel("spreadcoin");
 
 	opt_parse(&argc, argv, applog_and_exit);
 	if (argc != 1)
