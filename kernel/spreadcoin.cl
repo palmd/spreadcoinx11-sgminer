@@ -683,6 +683,29 @@ __kernel void spreadX11(__global const unsigned char* block2, __global uint64_t 
 
     // groestl
 
+    // local memory
+#if !SPH_SMALL_FOOTPRINT_GROESTL
+    __local sph_u64 T0[256], T1[256], T2[256], T3[256];
+    __local sph_u64 T4[256], T5[256], T6[256], T7[256];
+#else
+    __local sph_u64 T0[256], T4[256];
+#endif
+    for (int i = init; i < 256; i += step)
+    {
+        T0[i] = T0_C[i];
+        T4[i] = T4_C[i];
+#if !SPH_SMALL_FOOTPRINT_GROESTL
+        T1[i] = T1_C[i];
+        T2[i] = T2_C[i];
+        T3[i] = T3_C[i];
+        T5[i] = T5_C[i];
+        T6[i] = T6_C[i];
+        T7[i] = T7_C[i];
+#endif
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);    // groestl
+
+
     sph_u64 H[16];
     for (unsigned int u = 0; u < 15; u ++)
         H[u] = 0;
