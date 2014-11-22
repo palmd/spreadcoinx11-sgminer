@@ -1591,7 +1591,8 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 		size_t global_work_offset[1];
 
 		global_work_offset[0] = work->blk.nonce;
-		block_work_offset[0] = global_work_offset[0]/64;
+	    uint32_t nNonceOffset = ((work->blk.nonce + 0x3F) & ~0x3F) - work->blk.nonce;
+		block_work_offset[0] = nNonceOffset/64;
 		for (i = 0; i < clState->numkernels && status == CL_SUCCESS; i++) {
 			if (i == 0) {
 				status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernels[i], 1, block_work_offset,
