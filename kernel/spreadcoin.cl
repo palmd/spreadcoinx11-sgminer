@@ -599,6 +599,7 @@ __kernel void spreadBlake(__global const unsigned char* block2, __global uint64_
     hash->h8[7] = H7;
 }
 barrier(CLK_GLOBAL_MEM_FENCE);
+
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
@@ -609,7 +610,7 @@ __kernel void spreadSearch(volatile __global hash_t* hashes, volatile __global u
 
     bool result = (hash->h8[3] <= target);
     if (result)
-        output[output[0xFF]++] = gid; //SWAP4(gid);
+        output[output[0xFF]++] = SWAP4(gid);
     barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
