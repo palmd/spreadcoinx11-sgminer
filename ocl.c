@@ -221,7 +221,7 @@ const char* spread_kernel_names[] = {
 		"spreadJH",
 		"spreadKeccak",
 		"spreadLuffa",
-		"spreadCubehash",
+//		"spreadCubehash",
 //		"spreadShavite",
 //		"spreadSIMD",
 		"spreadX11",
