@@ -527,11 +527,7 @@ __kernel void spreadBlake(__global const unsigned char* block2, __global uint64_
 
     __global const unsigned char* block = block2 + 64;
 
-    //for (uint32_t low_nonce = 0; low_nonce < 64; low_nonce++)
-    //{
-
     // blake
-{
     sph_u64 H0 = SPH_C64(0x6A09E667F3BCC908), H1 = SPH_C64(0xBB67AE8584CAA73B);
     sph_u64 H2 = SPH_C64(0x3C6EF372FE94F82B), H3 = SPH_C64(0xA54FF53A5F1D36F1);
     sph_u64 H4 = SPH_C64(0x510E527FADE682D1), H5 = SPH_C64(0x9B05688C2B3E6C1F);
@@ -542,10 +538,6 @@ __kernel void spreadBlake(__global const unsigned char* block2, __global uint64_
     T0 = 1024;
     T1 = 0;
 
-/*    if ((T0 = SPH_T64(T0 + 1024)) < 1024)
-    {
-        T1 = SPH_T64(T1 + 1);
-    }*/
     sph_u64 M0, M1, M2, M3, M4, M5, M6, M7;
     sph_u64 M8, M9, MA, MB, MC, MD, ME, MF;
     sph_u64 V0, V1, V2, V3, V4, V5, V6, V7;
@@ -601,14 +593,6 @@ __kernel void spreadBlake(__global const unsigned char* block2, __global uint64_
     hash->h8[5] = H5;
     hash->h8[6] = H6;
     hash->h8[7] = H7;
-/*
-    bool result = (H0 <= target);
-    if (result)
-        output[output[0xFF]++] = gid;
-
-    return;*/
-}
-
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
@@ -685,13 +669,10 @@ __kernel void spreadBMW(__global hash_t *hashes)
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output, const ulong target)
+__kernel void spreadGroestl(__global hash_t *hashes)
 {
-
     uint32_t nonce = get_global_id(0);
-    __global hash_t *phash = &(hashes[nonce-get_global_offset(0)]);
-    hash_t hash = (*phash);
-
+    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
 
     __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
     int init = get_local_id(0);
@@ -740,14 +721,14 @@ __kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output,
 #endif
 
     sph_u64 g[16], m[16];
-    m[0] = DEC64E(hash.h8[0]);
-    m[1] = DEC64E(hash.h8[1]);
-    m[2] = DEC64E(hash.h8[2]);
-    m[3] = DEC64E(hash.h8[3]);
-    m[4] = DEC64E(hash.h8[4]);
-    m[5] = DEC64E(hash.h8[5]);
-    m[6] = DEC64E(hash.h8[6]);
-    m[7] = DEC64E(hash.h8[7]);
+    m[0] = DEC64E(hash->h8[0]);
+    m[1] = DEC64E(hash->h8[1]);
+    m[2] = DEC64E(hash->h8[2]);
+    m[3] = DEC64E(hash->h8[3]);
+    m[4] = DEC64E(hash->h8[4]);
+    m[5] = DEC64E(hash->h8[5]);
+    m[6] = DEC64E(hash->h8[6]);
+    m[7] = DEC64E(hash->h8[7]);
     for (unsigned int u = 0; u < 16; u ++)
         g[u] = m[u] ^ H[u];
     m[8] = 0x80; g[8] = m[8] ^ H[8];
@@ -769,7 +750,31 @@ __kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output,
     for (unsigned int u = 0; u < 16; u ++)
         H[u] ^= xH[u];
     for (unsigned int u = 0; u < 8; u ++)
-        hash.h8[u] = DEC64E(H[u + 8]);
+        hash->h8[u] = DEC64E(H[u + 8]);
+
+
+}
+
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output, const ulong target)
+{
+
+    uint32_t nonce = get_global_id(0);
+    __global hash_t *phash = &(hashes[nonce-get_global_offset(0)]);
+    hash_t hash = (*phash);
+
+
+    __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
+    int init = get_local_id(0);
+    int step = get_local_size(0);
+    for (int i = init; i < 256; i += step)
+    {
+        AES0[i] = AES0_C[i];
+        AES1[i] = AES1_C[i];
+        AES2[i] = AES2_C[i];
+        AES3[i] = AES3_C[i];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     // skein
 
