@@ -216,6 +216,15 @@ const char* spread_kernel_names[] = {
 		"signature",
 		"spreadBlake",
 		"spreadBMW",
+		"spreadGroestl",
+		"spreadSkein",
+		"spreadJH",
+		"spreadKeccak",
+		"spreadLuffa",
+		"spreadCubehash",
+		"spreadShavite",
+		"spreadSIMD",
+		"spreadEcho",
 		"spreadX11",
 		NULL
 };
