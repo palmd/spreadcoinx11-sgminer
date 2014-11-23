@@ -224,6 +224,7 @@ const char* spread_kernel_names[] = {
 		"spreadCubehash",
 		"spreadShavite",
 		"spreadSIMD",
+		"spreadEcho",
 		"spreadX11",
 		NULL
 };
