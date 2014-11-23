@@ -674,20 +674,9 @@ __kernel void spreadGroestl(__global hash_t *hashes)
     uint32_t nonce = get_global_id(0);
     __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
 
-    __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
     int init = get_local_id(0);
     int step = get_local_size(0);
-    for (int i = init; i < 256; i += step)
-    {
-        AES0[i] = AES0_C[i];
-        AES1[i] = AES1_C[i];
-        AES2[i] = AES2_C[i];
-        AES3[i] = AES3_C[i];
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
     // groestl
-
     // local memory
 #if !SPH_SMALL_FOOTPRINT_GROESTL
     __local sph_u64 T0[256], T1[256], T2[256], T3[256];
