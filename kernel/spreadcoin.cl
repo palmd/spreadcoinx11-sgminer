@@ -203,7 +203,7 @@ typedef union {
 } hash_t;
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void signature(__global const unsigned char* block2, __global uint64_t *hashWholeBlock_big, __global uint64_t *signbe_big)
+__kernel void signature1(__global const unsigned char* block2, __global uint64_t *hashWholeBlock_big, __global uint64_t *signbe_big)
 {
 
     uint32_t full_nonce = get_global_id(0);
@@ -216,9 +216,6 @@ __kernel void signature(__global const unsigned char* block2, __global uint64_t 
 
     __global uint64_t *hashWholeBlock = hashWholeBlock_big + (4*(full_nonce));
     __global uint64_t *signbe = signbe_big + (5*(full_nonce));
-
-    //if ((high_nonce & 0x3F) == 0)
-    {
 
     const uint32_t disorder[8] = {801750719, 1076732275, 1354194884, 1162945305, 1, 0, 0, 0};
 
@@ -378,8 +375,24 @@ __kernel void signature(__global const unsigned char* block2, __global uint64_t 
     signbe[2] = SWAP8((signature[2] << 8) | signature8[2]);
     signbe[3] = SWAP8((signature[3] << 8) | signature8[3]);
     signbe[4] = (signature8[4] << 56) | 0x80000000000000;
+}
 
-    uint32_t a = SH0;
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__kernel void signature2(__global const unsigned char* block2, __global uint64_t *hashWholeBlock_big, __global uint64_t *signbe_big)
+{
+
+        uint32_t full_nonce = get_global_id(0);
+        uint32_t high_nonce = full_nonce << 6UL;// & ~((uint32_t)0x3F);
+        //uint32_t low_nonce = full_nonce & 0x3F;
+
+    	__global const unsigned char* block = block2 + 64;
+        __global const unsigned char* kinv = block2;
+        __global const unsigned char* prk = block2 + 32;
+
+        __global uint64_t *hashWholeBlock = hashWholeBlock_big + (4*(full_nonce));
+        __global uint64_t *signbe = signbe_big + (5*(full_nonce));
+
+        uint32_t a = SH0;
     uint32_t b = SH1;
     uint32_t c = SH2;
     uint32_t d = SH3;
@@ -513,7 +526,6 @@ __kernel void signature(__global const unsigned char* block2, __global uint64_t 
     hashWholeBlock[2] = (((uint64_t)hh[4]) << 32) | hh[5];
     hashWholeBlock[3] = (((uint64_t)hh[6]) << 32) | hh[7];
 
-    } // first block
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))

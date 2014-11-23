@@ -213,7 +213,8 @@ void patch_opcodes(char *w, unsigned remaining)
 }
 
 const char* spread_kernel_names[] = {
-		"signature",
+		"signature1",
+		"signature2",
 		"spreadBlake",
 		"bmw",
 		"spreadGroestl",
