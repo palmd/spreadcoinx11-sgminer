@@ -774,11 +774,10 @@ __kernel void spreadSkein(__global hash_t *hashes)
     hash->h8[6] = SWAP8(h6);
     hash->h8[7] = SWAP8(h7);
 
-    barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadJH(volatile __global hash_t *hashes)
+__kernel void spreadJH(__global hash_t *hashes)
 {
     uint32_t nonce = get_global_id(0);
     __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
@@ -824,8 +823,6 @@ __kernel void spreadJH(volatile __global hash_t *hashes)
      hash->h8[5] = DEC64E(h6l);
      hash->h8[6] = DEC64E(h7h);
      hash->h8[7] = DEC64E(h7l);
-
-     barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
