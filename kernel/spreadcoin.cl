@@ -612,17 +612,10 @@ __kernel void spreadBlake(__global const unsigned char* block2, __global uint64_
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadX11(__global uint64_t *hashWholeBlock_big, __global uint64_t *signbe_big, __global hash_t *hashes, volatile __global uint* output, const ulong target)
+__kernel void spreadBMW(__global hash_t *hashes)
 {
-
     uint32_t nonce = get_global_id(0);
-    uint32_t high_nonce = nonce & ~((uint32_t)0x3F);
-
-    __global uint64_t *hashWholeBlock = hashWholeBlock_big + (4*(high_nonce >> 6));
-    __global uint64_t *signbe = signbe_big + (5*(high_nonce >> 6));
-    __global hash_t *phash = &(hashes[nonce-get_global_offset(0)]);
-    hash_t hash = (*phash);
-
+    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
 
     __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
     int init = get_local_id(0);
@@ -636,9 +629,6 @@ __kernel void spreadX11(__global uint64_t *hashWholeBlock_big, __global uint64_t
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-
-
-
     // bmw
     sph_u64 BMW_H[16];
     for(unsigned u = 0; u < 16; u++)
@@ -647,14 +637,14 @@ __kernel void spreadX11(__global uint64_t *hashWholeBlock_big, __global uint64_t
     sph_u64 BMW_h1[16], BMW_h2[16];
     sph_u64 mv[16];
 
-    mv[ 0] = SWAP8(hash.h8[0]);
-    mv[ 1] = SWAP8(hash.h8[1]);
-    mv[ 2] = SWAP8(hash.h8[2]);
-    mv[ 3] = SWAP8(hash.h8[3]);
-    mv[ 4] = SWAP8(hash.h8[4]);
-    mv[ 5] = SWAP8(hash.h8[5]);
-    mv[ 6] = SWAP8(hash.h8[6]);
-    mv[ 7] = SWAP8(hash.h8[7]);
+    mv[ 0] = SWAP8(hash->h8[0]);
+    mv[ 1] = SWAP8(hash->h8[1]);
+    mv[ 2] = SWAP8(hash->h8[2]);
+    mv[ 3] = SWAP8(hash->h8[3]);
+    mv[ 4] = SWAP8(hash->h8[4]);
+    mv[ 5] = SWAP8(hash->h8[5]);
+    mv[ 6] = SWAP8(hash->h8[6]);
+    mv[ 7] = SWAP8(hash->h8[7]);
     mv[ 8] = 0x80;
     mv[ 9] = 0;
     mv[10] = 0;
@@ -683,14 +673,37 @@ __kernel void spreadX11(__global uint64_t *hashWholeBlock_big, __global uint64_t
 #undef H
 #undef dH
 
-    hash.h8[0] = SWAP8(BMW_h1[8]);
-    hash.h8[1] = SWAP8(BMW_h1[9]);
-    hash.h8[2] = SWAP8(BMW_h1[10]);
-    hash.h8[3] = SWAP8(BMW_h1[11]);
-    hash.h8[4] = SWAP8(BMW_h1[12]);
-    hash.h8[5] = SWAP8(BMW_h1[13]);
-    hash.h8[6] = SWAP8(BMW_h1[14]);
-    hash.h8[7] = SWAP8(BMW_h1[15]);
+    hash->h8[0] = SWAP8(BMW_h1[8]);
+    hash->h8[1] = SWAP8(BMW_h1[9]);
+    hash->h8[2] = SWAP8(BMW_h1[10]);
+    hash->h8[3] = SWAP8(BMW_h1[11]);
+    hash->h8[4] = SWAP8(BMW_h1[12]);
+    hash->h8[5] = SWAP8(BMW_h1[13]);
+    hash->h8[6] = SWAP8(BMW_h1[14]);
+    hash->h8[7] = SWAP8(BMW_h1[15]);
+
+}
+
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output, const ulong target)
+{
+
+    uint32_t nonce = get_global_id(0);
+    __global hash_t *phash = &(hashes[nonce-get_global_offset(0)]);
+    hash_t hash = (*phash);
+
+
+    __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
+    int init = get_local_id(0);
+    int step = get_local_size(0);
+    for (int i = init; i < 256; i += step)
+    {
+        AES0[i] = AES0_C[i];
+        AES1[i] = AES1_C[i];
+        AES2[i] = AES2_C[i];
+        AES3[i] = AES3_C[i];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     // groestl
 

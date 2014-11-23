@@ -1160,9 +1160,9 @@ static cl_int queue_spreadcoin_kernel(_clState *clState, dev_blk_ctx *blk, __may
 		num = 0;
 		if (i <= 1) {
 			CL_SET_ARG(clState->CLbuffer0);
+			CL_SET_ARG(clState->hwbbuffer);
+			CL_SET_ARG(clState->signbuffer);
 		}
-		CL_SET_ARG(clState->hwbbuffer);
-		CL_SET_ARG(clState->signbuffer);
 		if (i >= 1) { // secondo on, gets all the intermediary buffers
 			CL_SET_ARG(clState->padbuffer8);
 		}

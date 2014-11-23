@@ -215,6 +215,7 @@ void patch_opcodes(char *w, unsigned remaining)
 const char* spread_kernel_names[] = {
 		"signature",
 		"spreadBlake",
+		"spreadBMW",
 		"spreadX11",
 		NULL
 };
