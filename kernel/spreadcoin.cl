@@ -617,6 +617,18 @@ __kernel void spreadBMW(__global hash_t *hashes)
     uint32_t nonce = get_global_id(0);
     __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
 
+    __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
+    int init = get_local_id(0);
+    int step = get_local_size(0);
+    for (int i = init; i < 256; i += step)
+    {
+        AES0[i] = AES0_C[i];
+        AES1[i] = AES1_C[i];
+        AES2[i] = AES2_C[i];
+        AES3[i] = AES3_C[i];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
     // bmw
     sph_u64 BMW_H[16];
     for(unsigned u = 0; u < 16; u++)
@@ -673,12 +685,25 @@ __kernel void spreadBMW(__global hash_t *hashes)
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadGroestl(__global hash_t *hashes)
+__kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output, const ulong target)
 {
+
     uint32_t nonce = get_global_id(0);
-    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
+    __global hash_t *phash = &(hashes[nonce-get_global_offset(0)]);
+    hash_t hash = (*phash);
+
+
+    __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
     int init = get_local_id(0);
     int step = get_local_size(0);
+    for (int i = init; i < 256; i += step)
+    {
+        AES0[i] = AES0_C[i];
+        AES1[i] = AES1_C[i];
+        AES2[i] = AES2_C[i];
+        AES3[i] = AES3_C[i];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     // groestl
 
@@ -715,14 +740,14 @@ __kernel void spreadGroestl(__global hash_t *hashes)
 #endif
 
     sph_u64 g[16], m[16];
-    m[0] = DEC64E(hash->h8[0]);
-    m[1] = DEC64E(hash->h8[1]);
-    m[2] = DEC64E(hash->h8[2]);
-    m[3] = DEC64E(hash->h8[3]);
-    m[4] = DEC64E(hash->h8[4]);
-    m[5] = DEC64E(hash->h8[5]);
-    m[6] = DEC64E(hash->h8[6]);
-    m[7] = DEC64E(hash->h8[7]);
+    m[0] = DEC64E(hash.h8[0]);
+    m[1] = DEC64E(hash.h8[1]);
+    m[2] = DEC64E(hash.h8[2]);
+    m[3] = DEC64E(hash.h8[3]);
+    m[4] = DEC64E(hash.h8[4]);
+    m[5] = DEC64E(hash.h8[5]);
+    m[6] = DEC64E(hash.h8[6]);
+    m[7] = DEC64E(hash.h8[7]);
     for (unsigned int u = 0; u < 16; u ++)
         g[u] = m[u] ^ H[u];
     m[8] = 0x80; g[8] = m[8] ^ H[8];
@@ -744,15 +769,7 @@ __kernel void spreadGroestl(__global hash_t *hashes)
     for (unsigned int u = 0; u < 16; u ++)
         H[u] ^= xH[u];
     for (unsigned int u = 0; u < 8; u ++)
-        hash->h8[u] = DEC64E(H[u + 8]);
-
-}
-
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadSkein(__global hash_t *hashes)
-{
-    uint32_t nonce = get_global_id(0);
-    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
+        hash.h8[u] = DEC64E(H[u + 8]);
 
     // skein
 
@@ -760,130 +777,108 @@ __kernel void spreadSkein(__global hash_t *hashes)
     sph_u64 m0, m1, m2, m3, m4, m5, m6, m7;
     sph_u64 bcount = 0;
 
-    m0 = SWAP8(hash->h8[0]);
-    m1 = SWAP8(hash->h8[1]);
-    m2 = SWAP8(hash->h8[2]);
-    m3 = SWAP8(hash->h8[3]);
-    m4 = SWAP8(hash->h8[4]);
-    m5 = SWAP8(hash->h8[5]);
-    m6 = SWAP8(hash->h8[6]);
-    m7 = SWAP8(hash->h8[7]);
+    m0 = SWAP8(hash.h8[0]);
+    m1 = SWAP8(hash.h8[1]);
+    m2 = SWAP8(hash.h8[2]);
+    m3 = SWAP8(hash.h8[3]);
+    m4 = SWAP8(hash.h8[4]);
+    m5 = SWAP8(hash.h8[5]);
+    m6 = SWAP8(hash.h8[6]);
+    m7 = SWAP8(hash.h8[7]);
     UBI_BIG(480, 64);
     bcount = 0;
     m0 = m1 = m2 = m3 = m4 = m5 = m6 = m7 = 0;
     UBI_BIG(510, 8);
-    hash->h8[0] = SWAP8(h0);
-    hash->h8[1] = SWAP8(h1);
-    hash->h8[2] = SWAP8(h2);
-    hash->h8[3] = SWAP8(h3);
-    hash->h8[4] = SWAP8(h4);
-    hash->h8[5] = SWAP8(h5);
-    hash->h8[6] = SWAP8(h6);
-    hash->h8[7] = SWAP8(h7);
+    hash.h8[0] = SWAP8(h0);
+    hash.h8[1] = SWAP8(h1);
+    hash.h8[2] = SWAP8(h2);
+    hash.h8[3] = SWAP8(h3);
+    hash.h8[4] = SWAP8(h4);
+    hash.h8[5] = SWAP8(h5);
+    hash.h8[6] = SWAP8(h6);
+    hash.h8[7] = SWAP8(h7);
 
-}
+   // jh
 
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadJH(__global hash_t *hashes)
-{
-    uint32_t nonce = get_global_id(0);
-    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
-    // jh
+    sph_u64 h0h = C64e(0x6fd14b963e00aa17), h0l = C64e(0x636a2e057a15d543), h1h = C64e(0x8a225e8d0c97ef0b), h1l = C64e(0xe9341259f2b3c361), h2h = C64e(0x891da0c1536f801e), h2l = C64e(0x2aa9056bea2b6d80), h3h = C64e(0x588eccdb2075baa6), h3l = C64e(0xa90f3a76baf83bf7);
+    sph_u64 h4h = C64e(0x0169e60541e34a69), h4l = C64e(0x46b58a8e2e6fe65a), h5h = C64e(0x1047a7d0c1843c24), h5l = C64e(0x3b6e71b12d5ac199), h6h = C64e(0xcf57f6ec9db1f856), h6l = C64e(0xa706887c5716b156), h7h = C64e(0xe3c2fcdfe68517fb), h7l = C64e(0x545a4678cc8cdd4b);
+    sph_u64 tmp;
 
-        sph_u64 h0h = C64e(0x6fd14b963e00aa17), h0l = C64e(0x636a2e057a15d543), h1h = C64e(0x8a225e8d0c97ef0b), h1l = C64e(0xe9341259f2b3c361), h2h = C64e(0x891da0c1536f801e), h2l = C64e(0x2aa9056bea2b6d80), h3h = C64e(0x588eccdb2075baa6), h3l = C64e(0xa90f3a76baf83bf7);
-        sph_u64 h4h = C64e(0x0169e60541e34a69), h4l = C64e(0x46b58a8e2e6fe65a), h5h = C64e(0x1047a7d0c1843c24), h5l = C64e(0x3b6e71b12d5ac199), h6h = C64e(0xcf57f6ec9db1f856), h6l = C64e(0xa706887c5716b156), h7h = C64e(0xe3c2fcdfe68517fb), h7l = C64e(0x545a4678cc8cdd4b);
-        sph_u64 tmp;
+    for(int i = 0; i < 2; i++)
+    {
+        if (i == 0) {
+            h0h ^= DEC64E(hash.h8[0]);
+            h0l ^= DEC64E(hash.h8[1]);
+            h1h ^= DEC64E(hash.h8[2]);
+            h1l ^= DEC64E(hash.h8[3]);
+            h2h ^= DEC64E(hash.h8[4]);
+            h2l ^= DEC64E(hash.h8[5]);
+            h3h ^= DEC64E(hash.h8[6]);
+            h3l ^= DEC64E(hash.h8[7]);
+        } else if(i == 1) {
+            h4h ^= DEC64E(hash.h8[0]);
+            h4l ^= DEC64E(hash.h8[1]);
+            h5h ^= DEC64E(hash.h8[2]);
+            h5l ^= DEC64E(hash.h8[3]);
+            h6h ^= DEC64E(hash.h8[4]);
+            h6l ^= DEC64E(hash.h8[5]);
+            h7h ^= DEC64E(hash.h8[6]);
+            h7l ^= DEC64E(hash.h8[7]);
 
-        for(int i = 0; i < 2; i++)
-        {
-            if (i == 0) {
-                h0h ^= DEC64E(hash->h8[0]);
-                h0l ^= DEC64E(hash->h8[1]);
-                h1h ^= DEC64E(hash->h8[2]);
-                h1l ^= DEC64E(hash->h8[3]);
-                h2h ^= DEC64E(hash->h8[4]);
-                h2l ^= DEC64E(hash->h8[5]);
-                h3h ^= DEC64E(hash->h8[6]);
-                h3l ^= DEC64E(hash->h8[7]);
-            } else if(i == 1) {
-                h4h ^= DEC64E(hash->h8[0]);
-                h4l ^= DEC64E(hash->h8[1]);
-                h5h ^= DEC64E(hash->h8[2]);
-                h5l ^= DEC64E(hash->h8[3]);
-                h6h ^= DEC64E(hash->h8[4]);
-                h6l ^= DEC64E(hash->h8[5]);
-                h7h ^= DEC64E(hash->h8[6]);
-                h7l ^= DEC64E(hash->h8[7]);
-
-                h0h ^= 0x80;
-                h3l ^= 0x2000000000000;
-            }
-            E8;
+            h0h ^= 0x80;
+            h3l ^= 0x2000000000000;
         }
-        h4h ^= 0x80;
-        h7l ^= 0x2000000000000;
+        E8;
+    }
+    h4h ^= 0x80;
+    h7l ^= 0x2000000000000;
 
-        hash->h8[0] = DEC64E(h4h);
-        hash->h8[1] = DEC64E(h4l);
-        hash->h8[2] = DEC64E(h5h);
-        hash->h8[3] = DEC64E(h5l);
-        hash->h8[4] = DEC64E(h6h);
-        hash->h8[5] = DEC64E(h6l);
-        hash->h8[6] = DEC64E(h7h);
-        hash->h8[7] = DEC64E(h7l);
+    hash.h8[0] = DEC64E(h4h);
+    hash.h8[1] = DEC64E(h4l);
+    hash.h8[2] = DEC64E(h5h);
+    hash.h8[3] = DEC64E(h5l);
+    hash.h8[4] = DEC64E(h6h);
+    hash.h8[5] = DEC64E(h6l);
+    hash.h8[6] = DEC64E(h7h);
+    hash.h8[7] = DEC64E(h7l);
 
-}
-
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadKeccak(__global hash_t *hashes)
-{
-    uint32_t nonce = get_global_id(0);
-    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
     // keccak
 
-  sph_u64 a00 = 0, a01 = 0, a02 = 0, a03 = 0, a04 = 0;
-  sph_u64 a10 = 0, a11 = 0, a12 = 0, a13 = 0, a14 = 0;
-  sph_u64 a20 = 0, a21 = 0, a22 = 0, a23 = 0, a24 = 0;
-  sph_u64 a30 = 0, a31 = 0, a32 = 0, a33 = 0, a34 = 0;
-  sph_u64 a40 = 0, a41 = 0, a42 = 0, a43 = 0, a44 = 0;
+    sph_u64 a00 = 0, a01 = 0, a02 = 0, a03 = 0, a04 = 0;
+    sph_u64 a10 = 0, a11 = 0, a12 = 0, a13 = 0, a14 = 0;
+    sph_u64 a20 = 0, a21 = 0, a22 = 0, a23 = 0, a24 = 0;
+    sph_u64 a30 = 0, a31 = 0, a32 = 0, a33 = 0, a34 = 0;
+    sph_u64 a40 = 0, a41 = 0, a42 = 0, a43 = 0, a44 = 0;
 
-  a10 = SPH_C64(0xFFFFFFFFFFFFFFFF);
-  a20 = SPH_C64(0xFFFFFFFFFFFFFFFF);
-  a31 = SPH_C64(0xFFFFFFFFFFFFFFFF);
-  a22 = SPH_C64(0xFFFFFFFFFFFFFFFF);
-  a23 = SPH_C64(0xFFFFFFFFFFFFFFFF);
-  a04 = SPH_C64(0xFFFFFFFFFFFFFFFF);
+    a10 = SPH_C64(0xFFFFFFFFFFFFFFFF);
+    a20 = SPH_C64(0xFFFFFFFFFFFFFFFF);
+    a31 = SPH_C64(0xFFFFFFFFFFFFFFFF);
+    a22 = SPH_C64(0xFFFFFFFFFFFFFFFF);
+    a23 = SPH_C64(0xFFFFFFFFFFFFFFFF);
+    a04 = SPH_C64(0xFFFFFFFFFFFFFFFF);
 
-  a00 ^= SWAP8(hash->h8[0]);
-  a10 ^= SWAP8(hash->h8[1]);
-  a20 ^= SWAP8(hash->h8[2]);
-  a30 ^= SWAP8(hash->h8[3]);
-  a40 ^= SWAP8(hash->h8[4]);
-  a01 ^= SWAP8(hash->h8[5]);
-  a11 ^= SWAP8(hash->h8[6]);
-  a21 ^= SWAP8(hash->h8[7]);
-  a31 ^= 0x8000000000000001;
-  KECCAK_F_1600;
-  // Finalize the "lane complement"
-  a10 = ~a10;
-  a20 = ~a20;
+    a00 ^= SWAP8(hash.h8[0]);
+    a10 ^= SWAP8(hash.h8[1]);
+    a20 ^= SWAP8(hash.h8[2]);
+    a30 ^= SWAP8(hash.h8[3]);
+    a40 ^= SWAP8(hash.h8[4]);
+    a01 ^= SWAP8(hash.h8[5]);
+    a11 ^= SWAP8(hash.h8[6]);
+    a21 ^= SWAP8(hash.h8[7]);
+    a31 ^= 0x8000000000000001;
+    KECCAK_F_1600;
+    // Finalize the "lane complement"
+    a10 = ~a10;
+    a20 = ~a20;
 
-  hash->h8[0] = SWAP8(a00);
-  hash->h8[1] = SWAP8(a10);
-  hash->h8[2] = SWAP8(a20);
-  hash->h8[3] = SWAP8(a30);
-  hash->h8[4] = SWAP8(a40);
-  hash->h8[5] = SWAP8(a01);
-  hash->h8[6] = SWAP8(a11);
-  hash->h8[7] = SWAP8(a21);
-
-}
-
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadLuffa(__global hash_t *hashes)
-{
-    uint32_t nonce = get_global_id(0);
-    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
+    hash.h8[0] = SWAP8(a00);
+    hash.h8[1] = SWAP8(a10);
+    hash.h8[2] = SWAP8(a20);
+    hash.h8[3] = SWAP8(a30);
+    hash.h8[4] = SWAP8(a40);
+    hash.h8[5] = SWAP8(a01);
+    hash.h8[6] = SWAP8(a11);
+    hash.h8[7] = SWAP8(a21);
 
     // luffa
 
@@ -895,14 +890,14 @@ __kernel void spreadLuffa(__global hash_t *hashes)
 
     DECL_TMP8(M);
 
-    M0 = hash->h4[1];
-    M1 = hash->h4[0];
-    M2 = hash->h4[3];
-    M3 = hash->h4[2];
-    M4 = hash->h4[5];
-    M5 = hash->h4[4];
-    M6 = hash->h4[7];
-    M7 = hash->h4[6];
+    M0 = hash.h4[1];
+    M1 = hash.h4[0];
+    M2 = hash.h4[3];
+    M3 = hash.h4[2];
+    M4 = hash.h4[5];
+    M5 = hash.h4[4];
+    M6 = hash.h4[7];
+    M7 = hash.h4[6];
 
     for(uint i = 0; i < 5; i++)
     {
@@ -910,46 +905,38 @@ __kernel void spreadLuffa(__global hash_t *hashes)
         LUFFA_P5;
 
         if(i == 0) {
-            M0 = hash->h4[9];
-            M1 = hash->h4[8];
-            M2 = hash->h4[11];
-            M3 = hash->h4[10];
-            M4 = hash->h4[13];
-            M5 = hash->h4[12];
-            M6 = hash->h4[15];
-            M7 = hash->h4[14];
+            M0 = hash.h4[9];
+            M1 = hash.h4[8];
+            M2 = hash.h4[11];
+            M3 = hash.h4[10];
+            M4 = hash.h4[13];
+            M5 = hash.h4[12];
+            M6 = hash.h4[15];
+            M7 = hash.h4[14];
         } else if(i == 1) {
             M0 = 0x80000000;
             M1 = M2 = M3 = M4 = M5 = M6 = M7 = 0;
         } else if(i == 2) {
             M0 = M1 = M2 = M3 = M4 = M5 = M6 = M7 = 0;
         } else if(i == 3) {
-            hash->h4[1] = V00 ^ V10 ^ V20 ^ V30 ^ V40;
-            hash->h4[0] = V01 ^ V11 ^ V21 ^ V31 ^ V41;
-            hash->h4[3] = V02 ^ V12 ^ V22 ^ V32 ^ V42;
-            hash->h4[2] = V03 ^ V13 ^ V23 ^ V33 ^ V43;
-            hash->h4[5] = V04 ^ V14 ^ V24 ^ V34 ^ V44;
-            hash->h4[4] = V05 ^ V15 ^ V25 ^ V35 ^ V45;
-            hash->h4[7] = V06 ^ V16 ^ V26 ^ V36 ^ V46;
-            hash->h4[6] = V07 ^ V17 ^ V27 ^ V37 ^ V47;
+            hash.h4[1] = V00 ^ V10 ^ V20 ^ V30 ^ V40;
+            hash.h4[0] = V01 ^ V11 ^ V21 ^ V31 ^ V41;
+            hash.h4[3] = V02 ^ V12 ^ V22 ^ V32 ^ V42;
+            hash.h4[2] = V03 ^ V13 ^ V23 ^ V33 ^ V43;
+            hash.h4[5] = V04 ^ V14 ^ V24 ^ V34 ^ V44;
+            hash.h4[4] = V05 ^ V15 ^ V25 ^ V35 ^ V45;
+            hash.h4[7] = V06 ^ V16 ^ V26 ^ V36 ^ V46;
+            hash.h4[6] = V07 ^ V17 ^ V27 ^ V37 ^ V47;
         }
     }
-    hash->h4[9] = V00 ^ V10 ^ V20 ^ V30 ^ V40;
-    hash->h4[8] = V01 ^ V11 ^ V21 ^ V31 ^ V41;
-    hash->h4[11] = V02 ^ V12 ^ V22 ^ V32 ^ V42;
-    hash->h4[10] = V03 ^ V13 ^ V23 ^ V33 ^ V43;
-    hash->h4[13] = V04 ^ V14 ^ V24 ^ V34 ^ V44;
-    hash->h4[12] = V05 ^ V15 ^ V25 ^ V35 ^ V45;
-    hash->h4[15] = V06 ^ V16 ^ V26 ^ V36 ^ V46;
-    hash->h4[14] = V07 ^ V17 ^ V27 ^ V37 ^ V47;
-
-}
-
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadCubehash(__global hash_t *hashes)
-{
-    uint32_t nonce = get_global_id(0);
-    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
+    hash.h4[9] = V00 ^ V10 ^ V20 ^ V30 ^ V40;
+    hash.h4[8] = V01 ^ V11 ^ V21 ^ V31 ^ V41;
+    hash.h4[11] = V02 ^ V12 ^ V22 ^ V32 ^ V42;
+    hash.h4[10] = V03 ^ V13 ^ V23 ^ V33 ^ V43;
+    hash.h4[13] = V04 ^ V14 ^ V24 ^ V34 ^ V44;
+    hash.h4[12] = V05 ^ V15 ^ V25 ^ V35 ^ V45;
+    hash.h4[15] = V06 ^ V16 ^ V26 ^ V36 ^ V46;
+    hash.h4[14] = V07 ^ V17 ^ V27 ^ V37 ^ V47;
 
     // cubehash.h1
 
@@ -962,27 +949,27 @@ __kernel void spreadCubehash(__global hash_t *hashes)
     sph_u32 xo = SPH_C32(0xD65C8A2B), xp = SPH_C32(0xA5A70E75), xq = SPH_C32(0xB1C62456), xr = SPH_C32(0xBC796576);
     sph_u32 xs = SPH_C32(0x1921C8F7), xt = SPH_C32(0xE7989AF1), xu = SPH_C32(0x7795D246), xv = SPH_C32(0xD43E3B44);
 
-    x0 ^= SWAP4(hash->h4[1]);
-    x1 ^= SWAP4(hash->h4[0]);
-    x2 ^= SWAP4(hash->h4[3]);
-    x3 ^= SWAP4(hash->h4[2]);
-    x4 ^= SWAP4(hash->h4[5]);
-    x5 ^= SWAP4(hash->h4[4]);
-    x6 ^= SWAP4(hash->h4[7]);
-    x7 ^= SWAP4(hash->h4[6]);
+    x0 ^= SWAP4(hash.h4[1]);
+    x1 ^= SWAP4(hash.h4[0]);
+    x2 ^= SWAP4(hash.h4[3]);
+    x3 ^= SWAP4(hash.h4[2]);
+    x4 ^= SWAP4(hash.h4[5]);
+    x5 ^= SWAP4(hash.h4[4]);
+    x6 ^= SWAP4(hash.h4[7]);
+    x7 ^= SWAP4(hash.h4[6]);
 
     for (int i = 0; i < 13; i ++) {
         SIXTEEN_ROUNDS;
 
         if (i == 0) {
-            x0 ^= SWAP4(hash->h4[9]);
-            x1 ^= SWAP4(hash->h4[8]);
-            x2 ^= SWAP4(hash->h4[11]);
-            x3 ^= SWAP4(hash->h4[10]);
-            x4 ^= SWAP4(hash->h4[13]);
-            x5 ^= SWAP4(hash->h4[12]);
-            x6 ^= SWAP4(hash->h4[15]);
-            x7 ^= SWAP4(hash->h4[14]);
+            x0 ^= SWAP4(hash.h4[9]);
+            x1 ^= SWAP4(hash.h4[8]);
+            x2 ^= SWAP4(hash.h4[11]);
+            x3 ^= SWAP4(hash.h4[10]);
+            x4 ^= SWAP4(hash.h4[13]);
+            x5 ^= SWAP4(hash.h4[12]);
+            x6 ^= SWAP4(hash.h4[15]);
+            x7 ^= SWAP4(hash.h4[14]);
         } else if(i == 1) {
             x0 ^= 0x80;
         } else if (i == 2) {
@@ -990,44 +977,25 @@ __kernel void spreadCubehash(__global hash_t *hashes)
         }
     }
 
-    hash->h4[0] = x0;
-    hash->h4[1] = x1;
-    hash->h4[2] = x2;
-    hash->h4[3] = x3;
-    hash->h4[4] = x4;
-    hash->h4[5] = x5;
-    hash->h4[6] = x6;
-    hash->h4[7] = x7;
-    hash->h4[8] = x8;
-    hash->h4[9] = x9;
-    hash->h4[10] = xa;
-    hash->h4[11] = xb;
-    hash->h4[12] = xc;
-    hash->h4[13] = xd;
-    hash->h4[14] = xe;
-    hash->h4[15] = xf;
-
-}
-
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadShavite(__global hash_t *hashes)
-{
-    uint32_t nonce = get_global_id(0);
-    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
-
-    __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
-    int init = get_local_id(0);
-    int step = get_local_size(0);
-    for (int i = init; i < 256; i += step)
-    {
-        AES0[i] = AES0_C[i];
-        AES1[i] = AES1_C[i];
-        AES2[i] = AES2_C[i];
-        AES3[i] = AES3_C[i];
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
+    hash.h4[0] = x0;
+    hash.h4[1] = x1;
+    hash.h4[2] = x2;
+    hash.h4[3] = x3;
+    hash.h4[4] = x4;
+    hash.h4[5] = x5;
+    hash.h4[6] = x6;
+    hash.h4[7] = x7;
+    hash.h4[8] = x8;
+    hash.h4[9] = x9;
+    hash.h4[10] = xa;
+    hash.h4[11] = xb;
+    hash.h4[12] = xc;
+    hash.h4[13] = xd;
+    hash.h4[14] = xe;
+    hash.h4[15] = xf;
 
     // shavite
+    {
     // IV
     sph_u32 h0 = SPH_C32(0x72FCCDD8), h1 = SPH_C32(0x79CA4727), h2 = SPH_C32(0x128A077B), h3 = SPH_C32(0x40D55AEC);
     sph_u32 h4 = SPH_C32(0xD1901A06), h5 = SPH_C32(0x430AE307), h6 = SPH_C32(0xB29F5CD1), h7 = SPH_C32(0xDF07FBFC);
@@ -1042,22 +1010,22 @@ __kernel void spreadShavite(__global hash_t *hashes)
 
     sph_u32 sc_count0 = (64 << 3), sc_count1 = 0, sc_count2 = 0, sc_count3 = 0;
 
-    rk00 = hash->h4[0];
-    rk01 = hash->h4[1];
-    rk02 = hash->h4[2];
-    rk03 = hash->h4[3];
-    rk04 = hash->h4[4];
-    rk05 = hash->h4[5];
-    rk06 = hash->h4[6];
-    rk07 = hash->h4[7];
-    rk08 = hash->h4[8];
-    rk09 = hash->h4[9];
-    rk0A = hash->h4[10];
-    rk0B = hash->h4[11];
-    rk0C = hash->h4[12];
-    rk0D = hash->h4[13];
-    rk0E = hash->h4[14];
-    rk0F = hash->h4[15];
+    rk00 = hash.h4[0];
+    rk01 = hash.h4[1];
+    rk02 = hash.h4[2];
+    rk03 = hash.h4[3];
+    rk04 = hash.h4[4];
+    rk05 = hash.h4[5];
+    rk06 = hash.h4[6];
+    rk07 = hash.h4[7];
+    rk08 = hash.h4[8];
+    rk09 = hash.h4[9];
+    rk0A = hash.h4[10];
+    rk0B = hash.h4[11];
+    rk0C = hash.h4[12];
+    rk0D = hash.h4[13];
+    rk0E = hash.h4[14];
+    rk0F = hash.h4[15];
     rk10 = 0x80;
     rk11 = rk12 = rk13 = rk14 = rk15 = rk16 = rk17 = rk18 = rk19 = rk1A = 0;
     rk1B = 0x2000000;
@@ -1066,36 +1034,29 @@ __kernel void spreadShavite(__global hash_t *hashes)
 
     c512(buf);
 
-    hash->h4[0] = h0;
-    hash->h4[1] = h1;
-    hash->h4[2] = h2;
-    hash->h4[3] = h3;
-    hash->h4[4] = h4;
-    hash->h4[5] = h5;
-    hash->h4[6] = h6;
-    hash->h4[7] = h7;
-    hash->h4[8] = h8;
-    hash->h4[9] = h9;
-    hash->h4[10] = hA;
-    hash->h4[11] = hB;
-    hash->h4[12] = hC;
-    hash->h4[13] = hD;
-    hash->h4[14] = hE;
-    hash->h4[15] = hF;
-
-}
-
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadSIMD(__global hash_t *hashes)
-{
-    uint32_t nonce = get_global_id(0);
-    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
+    hash.h4[0] = h0;
+    hash.h4[1] = h1;
+    hash.h4[2] = h2;
+    hash.h4[3] = h3;
+    hash.h4[4] = h4;
+    hash.h4[5] = h5;
+    hash.h4[6] = h6;
+    hash.h4[7] = h7;
+    hash.h4[8] = h8;
+    hash.h4[9] = h9;
+    hash.h4[10] = hA;
+    hash.h4[11] = hB;
+    hash.h4[12] = hC;
+    hash.h4[13] = hD;
+    hash.h4[14] = hE;
+    hash.h4[15] = hF;
+    }
 
     // simd
     s32 q[256];
     unsigned char x[128];
     for(unsigned int i = 0; i < 64; i++)
-	x[i] = hash->h1[i];
+	x[i] = hash.h1[i];
     for(unsigned int i = 64; i < 128; i++)
 	x[i] = 0;
 
@@ -1115,22 +1076,22 @@ __kernel void spreadSIMD(__global hash_t *hashes)
         q[i] = (tq <= 128 ? tq : tq - 257);
     }
 
-    A0 ^= hash->h4[0];
-    A1 ^= hash->h4[1];
-    A2 ^= hash->h4[2];
-    A3 ^= hash->h4[3];
-    A4 ^= hash->h4[4];
-    A5 ^= hash->h4[5];
-    A6 ^= hash->h4[6];
-    A7 ^= hash->h4[7];
-    B0 ^= hash->h4[8];
-    B1 ^= hash->h4[9];
-    B2 ^= hash->h4[10];
-    B3 ^= hash->h4[11];
-    B4 ^= hash->h4[12];
-    B5 ^= hash->h4[13];
-    B6 ^= hash->h4[14];
-    B7 ^= hash->h4[15];
+    A0 ^= hash.h4[0];
+    A1 ^= hash.h4[1];
+    A2 ^= hash.h4[2];
+    A3 ^= hash.h4[3];
+    A4 ^= hash.h4[4];
+    A5 ^= hash.h4[5];
+    A6 ^= hash.h4[6];
+    A7 ^= hash.h4[7];
+    B0 ^= hash.h4[8];
+    B1 ^= hash.h4[9];
+    B2 ^= hash.h4[10];
+    B3 ^= hash.h4[11];
+    B4 ^= hash.h4[12];
+    B5 ^= hash.h4[13];
+    B6 ^= hash.h4[14];
+    B7 ^= hash.h4[15];
 
     ONE_ROUND_BIG(0_, 0,  3, 23, 17, 27);
     ONE_ROUND_BIG(1_, 1, 28, 19, 22,  7);
@@ -1185,43 +1146,22 @@ __kernel void spreadSIMD(__global hash_t *hashes)
         IF, 25,  4, PP8_0_);
     #undef q
 
-    hash->h4[0] = A0;
-    hash->h4[1] = A1;
-    hash->h4[2] = A2;
-    hash->h4[3] = A3;
-    hash->h4[4] = A4;
-    hash->h4[5] = A5;
-    hash->h4[6] = A6;
-    hash->h4[7] = A7;
-    hash->h4[8] = B0;
-    hash->h4[9] = B1;
-    hash->h4[10] = B2;
-    hash->h4[11] = B3;
-    hash->h4[12] = B4;
-    hash->h4[13] = B5;
-    hash->h4[14] = B6;
-    hash->h4[15] = B7;
-
-
-}
-
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadEcho(__global hash_t *hashes)
-{
-    uint32_t nonce = get_global_id(0);
-    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
-
-    __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
-    int init = get_local_id(0);
-    int step = get_local_size(0);
-    for (int i = init; i < 256; i += step)
-    {
-        AES0[i] = AES0_C[i];
-        AES1[i] = AES1_C[i];
-        AES2[i] = AES2_C[i];
-        AES3[i] = AES3_C[i];
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
+    hash.h4[0] = A0;
+    hash.h4[1] = A1;
+    hash.h4[2] = A2;
+    hash.h4[3] = A3;
+    hash.h4[4] = A4;
+    hash.h4[5] = A5;
+    hash.h4[6] = A6;
+    hash.h4[7] = A7;
+    hash.h4[8] = B0;
+    hash.h4[9] = B1;
+    hash.h4[10] = B2;
+    hash.h4[11] = B3;
+    hash.h4[12] = B4;
+    hash.h4[13] = B5;
+    hash.h4[14] = B6;
+    hash.h4[15] = B7;
 
     // echo
     sph_u64 W00, W01, W10, W11, W20, W21, W30, W31, W40, W41, W50, W51, W60, W61, W70, W71, W80, W81, W90, W91, WA0, WA1, WB0, WB1, WC0, WC1, WD0, WD1, WE0, WE1, WF0, WF1;
@@ -1250,14 +1190,14 @@ __kernel void spreadEcho(__global hash_t *hashes)
     W61 = Vb61;
     W70 = Vb70;
     W71 = Vb71;
-    W80 = hash->h8[0];
-    W81 = hash->h8[1];
-    W90 = hash->h8[2];
-    W91 = hash->h8[3];
-    WA0 = hash->h8[4];
-    WA1 = hash->h8[5];
-    WB0 = hash->h8[6];
-    WB1 = hash->h8[7];
+    W80 = hash.h8[0];
+    W81 = hash.h8[1];
+    W90 = hash.h8[2];
+    W91 = hash.h8[3];
+    WA0 = hash.h8[4];
+    WA1 = hash.h8[5];
+    WB0 = hash.h8[6];
+    WB1 = hash.h8[7];
     WC0 = 0x80;
     WC1 = 0;
     WD0 = 0;
@@ -1271,34 +1211,16 @@ __kernel void spreadEcho(__global hash_t *hashes)
         BIG_ROUND;
     }
 
-    Vb00 ^= hash->h8[0] ^ W00 ^ W80;
-    Vb01 ^= hash->h8[1] ^ W01 ^ W81;
-    Vb10 ^= hash->h8[2] ^ W10 ^ W90;
-    Vb11 ^= hash->h8[3] ^ W11 ^ W91;
-    Vb20 ^= hash->h8[4] ^ W20 ^ WA0;
-    Vb21 ^= hash->h8[5] ^ W21 ^ WA1;
-    Vb30 ^= hash->h8[6] ^ W30 ^ WB0;
-    Vb31 ^= hash->h8[7] ^ W31 ^ WB1;
+    Vb00 ^= hash.h8[0] ^ W00 ^ W80;
+    Vb01 ^= hash.h8[1] ^ W01 ^ W81;
+    Vb10 ^= hash.h8[2] ^ W10 ^ W90;
+    Vb11 ^= hash.h8[3] ^ W11 ^ W91;
+    Vb20 ^= hash.h8[4] ^ W20 ^ WA0;
+    Vb21 ^= hash.h8[5] ^ W21 ^ WA1;
+    Vb30 ^= hash.h8[6] ^ W30 ^ WB0;
+    Vb31 ^= hash.h8[7] ^ W31 ^ WB1;
 
-    hash->h8[0] = Vb00;
-    hash->h8[1] = Vb01;
-    hash->h8[2] = Vb10;
-    hash->h8[3] = Vb11;
-    hash->h8[4] = Vb20;
-    hash->h8[5] = Vb21;
-    hash->h8[6] = Vb30;
-    hash->h8[7] = Vb31;
-
-}
-
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output, const ulong target)
-{
-
-    uint32_t nonce = get_global_id(0);
-    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
-
-    bool result = (hash->h8[3] <= target);
+    bool result = (Vb11 <= target);
     if (result)
         output[output[0xFF]++] = nonce;
 
