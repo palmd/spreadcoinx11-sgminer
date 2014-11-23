@@ -1158,11 +1158,15 @@ static cl_int queue_spreadcoin_kernel(_clState *clState, dev_blk_ctx *blk, __may
 //		printf ("kernel %s has %d args\n", kname, numargs);
 
 		num = 0;
-		CL_SET_ARG(clState->CLbuffer0);
-//		CL_SET_ARG(clState->padbuffer8);
+		if (i <= 1) {
+			CL_SET_ARG(clState->CLbuffer0);
+		}
 		CL_SET_ARG(clState->hwbbuffer);
 		CL_SET_ARG(clState->signbuffer);
-		if (i == 1) {
+		if (i >= 1) { // secondo on, gets all the intermediary buffers
+			CL_SET_ARG(clState->padbuffer8);
+		}
+		if (i == (clState->numkernels-1)) { // last gets output and target
 			CL_SET_ARG(clState->outputBuffer);
 			CL_SET_ARG(le_target);
 		}

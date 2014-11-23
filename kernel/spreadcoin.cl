@@ -517,36 +517,18 @@ __kernel void signature(__global const unsigned char* block2, __global uint64_t 
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadX11(__global const unsigned char* block2, __global uint64_t *hashWholeBlock_big, __global uint64_t *signbe_big, volatile __global uint* output, const ulong target)
-{
-
-	hash_t hash;
-    __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
-    int init = get_local_id(0);
-    int step = get_local_size(0);
-    for (int i = init; i < 256; i += step)
-    {
-        AES0[i] = AES0_C[i];
-        AES1[i] = AES1_C[i];
-        AES2[i] = AES2_C[i];
-        AES3[i] = AES3_C[i];
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-
-
-    uint32_t full_nonce = get_global_id(0);
-    uint32_t high_nonce = full_nonce & ~((uint32_t)0x3F);
-    uint32_t low_nonce = full_nonce & ((uint32_t)0x3F);
+__kernel void spreadBlake(__global const unsigned char* block2, __global uint64_t *hashWholeBlock_big, __global uint64_t *signbe_big, __global hash_t *hashes){
+    uint32_t nonce = get_global_id(0);
+    uint32_t high_nonce = nonce & ~((uint32_t)0x3F);
 
     __global uint64_t *hashWholeBlock = hashWholeBlock_big + (4*(high_nonce >> 6));
     __global uint64_t *signbe = signbe_big + (5*(high_nonce >> 6));
+    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
 
     __global const unsigned char* block = block2 + 64;
 
     //for (uint32_t low_nonce = 0; low_nonce < 64; low_nonce++)
     //{
-        uint32_t nonce = high_nonce + low_nonce;
 
     // blake
 {
@@ -611,14 +593,14 @@ __kernel void spreadX11(__global const unsigned char* block2, __global uint64_t 
 
     COMPRESS64;
 
-    hash.h8[0] = H0;
-    hash.h8[1] = H1;
-    hash.h8[2] = H2;
-    hash.h8[3] = H3;
-    hash.h8[4] = H4;
-    hash.h8[5] = H5;
-    hash.h8[6] = H6;
-    hash.h8[7] = H7;
+    hash->h8[0] = H0;
+    hash->h8[1] = H1;
+    hash->h8[2] = H2;
+    hash->h8[3] = H3;
+    hash->h8[4] = H4;
+    hash->h8[5] = H5;
+    hash->h8[6] = H6;
+    hash->h8[7] = H7;
 /*
     bool result = (H0 <= target);
     if (result)
@@ -626,6 +608,36 @@ __kernel void spreadX11(__global const unsigned char* block2, __global uint64_t 
 
     return;*/
 }
+
+}
+
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__kernel void spreadX11(__global uint64_t *hashWholeBlock_big, __global uint64_t *signbe_big, __global hash_t *hashes, volatile __global uint* output, const ulong target)
+{
+
+    uint32_t nonce = get_global_id(0);
+    uint32_t high_nonce = nonce & ~((uint32_t)0x3F);
+
+    __global uint64_t *hashWholeBlock = hashWholeBlock_big + (4*(high_nonce >> 6));
+    __global uint64_t *signbe = signbe_big + (5*(high_nonce >> 6));
+    __global hash_t *phash = &(hashes[nonce-get_global_offset(0)]);
+    hash_t hash = (*phash);
+
+
+    __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
+    int init = get_local_id(0);
+    int step = get_local_size(0);
+    for (int i = init; i < 256; i += step)
+    {
+        AES0[i] = AES0_C[i];
+        AES1[i] = AES1_C[i];
+        AES2[i] = AES2_C[i];
+        AES3[i] = AES3_C[i];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+
+
 
     // bmw
     sph_u64 BMW_H[16];
