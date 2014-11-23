@@ -1598,7 +1598,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 	    uint32_t nNonceOffset = ((work->blk.nonce + ((uint32_t)0x3F)) & ~((uint32_t)0x3F));
 		block_work_offset[0] = (nNonceOffset >> 6);
 		for (i = 0; i < clState->numkernels && status == CL_SUCCESS; i++) {
-			if (i == 0) {
+			if (i <= 1) {
 				status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernels[i], 1, block_work_offset,
 						blockThreads, localBlockThreads, 0,  NULL, NULL);
 			} else {
@@ -1607,7 +1607,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 			}
 		}
 	} else {
-		if (i == 0) {
+		if (i <= 1) {
 			status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernels[i], 1, NULL,
 					blockThreads, localBlockThreads, 0,  NULL, NULL);
 		} else {
