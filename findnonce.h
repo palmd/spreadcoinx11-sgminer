@@ -3,7 +3,8 @@
 #include "miner.h"
 #include "config.h"
 
-#define MAXTHREADS (0xFFFFFFFEULL)
+//#define MAXTHREADS (0xFFFFFFFEULL)
+#define MAXTHREADS (0x00800000ULL)
 
 #define MAXBUFFERS (0x100)
 #define BUFFERSIZE (sizeof(uint32_t) * MAXBUFFERS)

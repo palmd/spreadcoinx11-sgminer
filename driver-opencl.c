@@ -1584,15 +1584,15 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 		return -1;
 	}
 
-	blockThreads[0] = globalThreads[0]/64+1;
+	blockThreads[0] = (globalThreads[0]>>6)+1;
 	localBlockThreads[0] = localThreads[0];
 
 	if (clState->goffset) {
 		size_t global_work_offset[1];
 
 		global_work_offset[0] = work->blk.nonce;
-	    uint32_t nNonceOffset = ((work->blk.nonce + 0x3F) & ~0x3F);
-		block_work_offset[0] = nNonceOffset/64;
+	    uint32_t nNonceOffset = ((work->blk.nonce + ((uint32_t)0x3F)) & ~((uint32_t)0x3F));
+		block_work_offset[0] = (nNonceOffset >> 6);
 		for (i = 0; i < clState->numkernels && status == CL_SUCCESS; i++) {
 			if (i == 0) {
 				status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernels[i], 1, block_work_offset,
