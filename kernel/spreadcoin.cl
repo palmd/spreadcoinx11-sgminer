@@ -514,7 +514,6 @@ __kernel void signature(__global const unsigned char* block2, __global uint64_t 
     hashWholeBlock[3] = (((uint64_t)hh[6]) << 32) | hh[7];
 
     } // first block
-    barrier(CLK_LOCAL_MEM_FENCE);
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
