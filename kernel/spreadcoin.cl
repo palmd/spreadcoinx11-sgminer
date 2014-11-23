@@ -1206,10 +1206,13 @@ __kernel void spreadSIMD(__global hash_t *hashes)
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadEcho(__global hash_t *hashes)
+__kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output, const ulong target)
 {
+
     uint32_t nonce = get_global_id(0);
-    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
+    __global hash_t *phash = &(hashes[nonce-get_global_offset(0)]);
+    hash_t hash = (*phash);
+
 
     __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
     int init = get_local_id(0);
@@ -1250,14 +1253,14 @@ __kernel void spreadEcho(__global hash_t *hashes)
     W61 = Vb61;
     W70 = Vb70;
     W71 = Vb71;
-    W80 = hash->h8[0];
-    W81 = hash->h8[1];
-    W90 = hash->h8[2];
-    W91 = hash->h8[3];
-    WA0 = hash->h8[4];
-    WA1 = hash->h8[5];
-    WB0 = hash->h8[6];
-    WB1 = hash->h8[7];
+    W80 = hash.h8[0];
+    W81 = hash.h8[1];
+    W90 = hash.h8[2];
+    W91 = hash.h8[3];
+    WA0 = hash.h8[4];
+    WA1 = hash.h8[5];
+    WB0 = hash.h8[6];
+    WB1 = hash.h8[7];
     WC0 = 0x80;
     WC1 = 0;
     WD0 = 0;
@@ -1271,34 +1274,16 @@ __kernel void spreadEcho(__global hash_t *hashes)
         BIG_ROUND;
     }
 
-    Vb00 ^= hash->h8[0] ^ W00 ^ W80;
-    Vb01 ^= hash->h8[1] ^ W01 ^ W81;
-    Vb10 ^= hash->h8[2] ^ W10 ^ W90;
-    Vb11 ^= hash->h8[3] ^ W11 ^ W91;
-    Vb20 ^= hash->h8[4] ^ W20 ^ WA0;
-    Vb21 ^= hash->h8[5] ^ W21 ^ WA1;
-    Vb30 ^= hash->h8[6] ^ W30 ^ WB0;
-    Vb31 ^= hash->h8[7] ^ W31 ^ WB1;
+    Vb00 ^= hash.h8[0] ^ W00 ^ W80;
+    Vb01 ^= hash.h8[1] ^ W01 ^ W81;
+    Vb10 ^= hash.h8[2] ^ W10 ^ W90;
+    Vb11 ^= hash.h8[3] ^ W11 ^ W91;
+    Vb20 ^= hash.h8[4] ^ W20 ^ WA0;
+    Vb21 ^= hash.h8[5] ^ W21 ^ WA1;
+    Vb30 ^= hash.h8[6] ^ W30 ^ WB0;
+    Vb31 ^= hash.h8[7] ^ W31 ^ WB1;
 
-    hash->h8[0] = Vb00;
-    hash->h8[1] = Vb01;
-    hash->h8[2] = Vb10;
-    hash->h8[3] = Vb11;
-    hash->h8[4] = Vb20;
-    hash->h8[5] = Vb21;
-    hash->h8[6] = Vb30;
-    hash->h8[7] = Vb31;
-
-}
-
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output, const ulong target)
-{
-
-    uint32_t nonce = get_global_id(0);
-    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
-
-    bool result = (hash->h8[3] <= target);
+    bool result = (Vb11 <= target);
     if (result)
         output[output[0xFF]++] = nonce;
 
