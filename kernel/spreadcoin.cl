@@ -527,11 +527,7 @@ __kernel void spreadBlake(__global const unsigned char* block2, __global uint64_
 
     __global const unsigned char* block = block2 + 64;
 
-    //for (uint32_t low_nonce = 0; low_nonce < 64; low_nonce++)
-    //{
-
     // blake
-{
     sph_u64 H0 = SPH_C64(0x6A09E667F3BCC908), H1 = SPH_C64(0xBB67AE8584CAA73B);
     sph_u64 H2 = SPH_C64(0x3C6EF372FE94F82B), H3 = SPH_C64(0xA54FF53A5F1D36F1);
     sph_u64 H4 = SPH_C64(0x510E527FADE682D1), H5 = SPH_C64(0x9B05688C2B3E6C1F);
@@ -542,10 +538,6 @@ __kernel void spreadBlake(__global const unsigned char* block2, __global uint64_
     T0 = 1024;
     T1 = 0;
 
-/*    if ((T0 = SPH_T64(T0 + 1024)) < 1024)
-    {
-        T1 = SPH_T64(T1 + 1);
-    }*/
     sph_u64 M0, M1, M2, M3, M4, M5, M6, M7;
     sph_u64 M8, M9, MA, MB, MC, MD, ME, MF;
     sph_u64 V0, V1, V2, V3, V4, V5, V6, V7;
@@ -601,13 +593,7 @@ __kernel void spreadBlake(__global const unsigned char* block2, __global uint64_
     hash->h8[5] = H5;
     hash->h8[6] = H6;
     hash->h8[7] = H7;
-/*
-    bool result = (H0 <= target);
-    if (result)
-        output[output[0xFF]++] = gid;
-
-    return;*/
-}
+    barrier(CLK_GLOBAL_MEM_FENCE);
 
 }
 
@@ -669,6 +655,7 @@ __kernel void spreadBMW(__global hash_t *hashes)
     hash->h8[5] = SWAP8(BMW_h1[13]);
     hash->h8[6] = SWAP8(BMW_h1[14]);
     hash->h8[7] = SWAP8(BMW_h1[15]);
+    barrier(CLK_GLOBAL_MEM_FENCE);
 
 }
 
@@ -745,6 +732,7 @@ __kernel void spreadGroestl(__global hash_t *hashes)
         H[u] ^= xH[u];
     for (unsigned int u = 0; u < 8; u ++)
         hash->h8[u] = DEC64E(H[u + 8]);
+    barrier(CLK_GLOBAL_MEM_FENCE);
 
 }
 
@@ -780,6 +768,7 @@ __kernel void spreadSkein(__global hash_t *hashes)
     hash->h8[5] = SWAP8(h5);
     hash->h8[6] = SWAP8(h6);
     hash->h8[7] = SWAP8(h7);
+    barrier(CLK_GLOBAL_MEM_FENCE);
 
 }
 
@@ -831,6 +820,7 @@ __kernel void spreadJH(__global hash_t *hashes)
         hash->h8[5] = DEC64E(h6l);
         hash->h8[6] = DEC64E(h7h);
         hash->h8[7] = DEC64E(h7l);
+        barrier(CLK_GLOBAL_MEM_FENCE);
 
 }
 
@@ -876,6 +866,7 @@ __kernel void spreadKeccak(__global hash_t *hashes)
   hash->h8[5] = SWAP8(a01);
   hash->h8[6] = SWAP8(a11);
   hash->h8[7] = SWAP8(a21);
+  barrier(CLK_GLOBAL_MEM_FENCE);
 
 }
 
@@ -942,6 +933,7 @@ __kernel void spreadLuffa(__global hash_t *hashes)
     hash->h4[12] = V05 ^ V15 ^ V25 ^ V35 ^ V45;
     hash->h4[15] = V06 ^ V16 ^ V26 ^ V36 ^ V46;
     hash->h4[14] = V07 ^ V17 ^ V27 ^ V37 ^ V47;
+    barrier(CLK_GLOBAL_MEM_FENCE);
 
 }
 
@@ -1006,6 +998,7 @@ __kernel void spreadCubehash(__global hash_t *hashes)
     hash->h4[13] = xd;
     hash->h4[14] = xe;
     hash->h4[15] = xf;
+    barrier(CLK_GLOBAL_MEM_FENCE);
 
 }
 
@@ -1082,36 +1075,21 @@ __kernel void spreadShavite(__global hash_t *hashes)
     hash->h4[13] = hD;
     hash->h4[14] = hE;
     hash->h4[15] = hF;
+    barrier(CLK_GLOBAL_MEM_FENCE);
 
 }
 
-
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output, const ulong target)
+__kernel void spreadSIMD(__global hash_t *hashes)
 {
-
     uint32_t nonce = get_global_id(0);
-    __global hash_t *phash = &(hashes[nonce-get_global_offset(0)]);
-    hash_t hash = (*phash);
-
-
-    __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
-    int init = get_local_id(0);
-    int step = get_local_size(0);
-    for (int i = init; i < 256; i += step)
-    {
-        AES0[i] = AES0_C[i];
-        AES1[i] = AES1_C[i];
-        AES2[i] = AES2_C[i];
-        AES3[i] = AES3_C[i];
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
+    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
 
     // simd
     s32 q[256];
     unsigned char x[128];
     for(unsigned int i = 0; i < 64; i++)
-	x[i] = hash.h1[i];
+	x[i] = hash->h1[i];
     for(unsigned int i = 64; i < 128; i++)
 	x[i] = 0;
 
@@ -1131,22 +1109,22 @@ __kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output,
         q[i] = (tq <= 128 ? tq : tq - 257);
     }
 
-    A0 ^= hash.h4[0];
-    A1 ^= hash.h4[1];
-    A2 ^= hash.h4[2];
-    A3 ^= hash.h4[3];
-    A4 ^= hash.h4[4];
-    A5 ^= hash.h4[5];
-    A6 ^= hash.h4[6];
-    A7 ^= hash.h4[7];
-    B0 ^= hash.h4[8];
-    B1 ^= hash.h4[9];
-    B2 ^= hash.h4[10];
-    B3 ^= hash.h4[11];
-    B4 ^= hash.h4[12];
-    B5 ^= hash.h4[13];
-    B6 ^= hash.h4[14];
-    B7 ^= hash.h4[15];
+    A0 ^= hash->h4[0];
+    A1 ^= hash->h4[1];
+    A2 ^= hash->h4[2];
+    A3 ^= hash->h4[3];
+    A4 ^= hash->h4[4];
+    A5 ^= hash->h4[5];
+    A6 ^= hash->h4[6];
+    A7 ^= hash->h4[7];
+    B0 ^= hash->h4[8];
+    B1 ^= hash->h4[9];
+    B2 ^= hash->h4[10];
+    B3 ^= hash->h4[11];
+    B4 ^= hash->h4[12];
+    B5 ^= hash->h4[13];
+    B6 ^= hash->h4[14];
+    B7 ^= hash->h4[15];
 
     ONE_ROUND_BIG(0_, 0,  3, 23, 17, 27);
     ONE_ROUND_BIG(1_, 1, 28, 19, 22,  7);
@@ -1201,22 +1179,46 @@ __kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output,
         IF, 25,  4, PP8_0_);
     #undef q
 
-    hash.h4[0] = A0;
-    hash.h4[1] = A1;
-    hash.h4[2] = A2;
-    hash.h4[3] = A3;
-    hash.h4[4] = A4;
-    hash.h4[5] = A5;
-    hash.h4[6] = A6;
-    hash.h4[7] = A7;
-    hash.h4[8] = B0;
-    hash.h4[9] = B1;
-    hash.h4[10] = B2;
-    hash.h4[11] = B3;
-    hash.h4[12] = B4;
-    hash.h4[13] = B5;
-    hash.h4[14] = B6;
-    hash.h4[15] = B7;
+    hash->h4[0] = A0;
+    hash->h4[1] = A1;
+    hash->h4[2] = A2;
+    hash->h4[3] = A3;
+    hash->h4[4] = A4;
+    hash->h4[5] = A5;
+    hash->h4[6] = A6;
+    hash->h4[7] = A7;
+    hash->h4[8] = B0;
+    hash->h4[9] = B1;
+    hash->h4[10] = B2;
+    hash->h4[11] = B3;
+    hash->h4[12] = B4;
+    hash->h4[13] = B5;
+    hash->h4[14] = B6;
+    hash->h4[15] = B7;
+    barrier(CLK_GLOBAL_MEM_FENCE);
+
+
+}
+
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output, const ulong target)
+{
+
+    uint32_t nonce = get_global_id(0);
+    __global hash_t *hash = &(hashes[nonce-get_global_offset(0)]);
+
+
+    __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
+    int init = get_local_id(0);
+    int step = get_local_size(0);
+    for (int i = init; i < 256; i += step)
+    {
+        AES0[i] = AES0_C[i];
+        AES1[i] = AES1_C[i];
+        AES2[i] = AES2_C[i];
+        AES3[i] = AES3_C[i];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     // echo
     sph_u64 W00, W01, W10, W11, W20, W21, W30, W31, W40, W41, W50, W51, W60, W61, W70, W71, W80, W81, W90, W91, WA0, WA1, WB0, WB1, WC0, WC1, WD0, WD1, WE0, WE1, WF0, WF1;
@@ -1245,14 +1247,14 @@ __kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output,
     W61 = Vb61;
     W70 = Vb70;
     W71 = Vb71;
-    W80 = hash.h8[0];
-    W81 = hash.h8[1];
-    W90 = hash.h8[2];
-    W91 = hash.h8[3];
-    WA0 = hash.h8[4];
-    WA1 = hash.h8[5];
-    WB0 = hash.h8[6];
-    WB1 = hash.h8[7];
+    W80 = hash->h8[0];
+    W81 = hash->h8[1];
+    W90 = hash->h8[2];
+    W91 = hash->h8[3];
+    WA0 = hash->h8[4];
+    WA1 = hash->h8[5];
+    WB0 = hash->h8[6];
+    WB1 = hash->h8[7];
     WC0 = 0x80;
     WC1 = 0;
     WD0 = 0;
@@ -1266,14 +1268,14 @@ __kernel void spreadX11(__global hash_t *hashes, volatile __global uint* output,
         BIG_ROUND;
     }
 
-    Vb00 ^= hash.h8[0] ^ W00 ^ W80;
-    Vb01 ^= hash.h8[1] ^ W01 ^ W81;
-    Vb10 ^= hash.h8[2] ^ W10 ^ W90;
-    Vb11 ^= hash.h8[3] ^ W11 ^ W91;
-    Vb20 ^= hash.h8[4] ^ W20 ^ WA0;
-    Vb21 ^= hash.h8[5] ^ W21 ^ WA1;
-    Vb30 ^= hash.h8[6] ^ W30 ^ WB0;
-    Vb31 ^= hash.h8[7] ^ W31 ^ WB1;
+    Vb00 ^= hash->h8[0] ^ W00 ^ W80;
+    Vb01 ^= hash->h8[1] ^ W01 ^ W81;
+    Vb10 ^= hash->h8[2] ^ W10 ^ W90;
+    Vb11 ^= hash->h8[3] ^ W11 ^ W91;
+    Vb20 ^= hash->h8[4] ^ W20 ^ WA0;
+    Vb21 ^= hash->h8[5] ^ W21 ^ WA1;
+    Vb30 ^= hash->h8[6] ^ W30 ^ WB0;
+    Vb31 ^= hash->h8[7] ^ W31 ^ WB1;
 
     bool result = (Vb11 <= target);
     if (result)

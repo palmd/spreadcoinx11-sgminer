@@ -223,7 +223,7 @@ const char* spread_kernel_names[] = {
 		"spreadLuffa",
 		"spreadCubehash",
 		"spreadShavite",
-//		"spreadSIMD",
+		"spreadSIMD",
 		"spreadX11",
 		NULL
 };
