@@ -217,6 +217,7 @@ const char* spread_kernel_names[] = {
 		"spreadBlake",
 		"spreadBMW",
 		"spreadGroestl",
+		"spreadSkein",
 		"spreadX11",
 		NULL
 };
