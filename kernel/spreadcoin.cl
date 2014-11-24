@@ -184,17 +184,15 @@ void mul256ng(uint32_t c[16], const uint32_t a[8], const uint32_t b[8])
     }
     c[15] += r;
 }
-void reduce(uint32_t *r, const uint32_t *a)
+void reduce(uint32_t r[16], const uint32_t a[16])
 {
     const uint32_t disorder[8] = {801750719, 1076732275, 1354194884, 1162945305, 1, 0, 0, 0};
-//#pragma unroll 8
-//    for (int i = 0; i < 8; i++)
-//        r[i] = a[i];
-    ((uint8*)r)[0] = ((uint8*)a)[0];
-//#pragma unroll 8
-//    for (int i = 8; i < 16; i++)
-//        r[i] = 0;
-    ((uint8*)r)[1] = 0;
+#pragma unroll 8
+    for (int i = 0; i < 8; i++)
+        r[i] = a[i];
+#pragma unroll 8
+    for (int i = 8; i < 16; i++)
+        r[i] = 0;
     mul256ng(r, a + 8, disorder);
 }
 
