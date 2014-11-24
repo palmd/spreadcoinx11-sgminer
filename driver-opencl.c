@@ -1590,6 +1590,10 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 
 	blockThreads[0] = (globalThreads[0]>>6)+1;
 	localBlockThreads[0] = localThreads[0];
+	// thats for nvidia, it needs the total threads to be a multiple of work size
+    if (blockThreads[0] % localBlockThreads[0]) {
+    	blockThreads[0] += localBlockThreads[0]-(blockThreads[0]%localBlockThreads[0]);
+    }
 
 	if (clState->goffset) {
 		size_t global_work_offset[1];

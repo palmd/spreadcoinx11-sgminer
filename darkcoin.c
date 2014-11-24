@@ -255,7 +255,7 @@ void darkcoin_regenhash(struct work *work)
     uint32_t bufferA[16];
     uint32_t bufferB[16];
 
-    uint32_t high_nonce = work->data.header.nNonce/64*64;
+    uint32_t high_nonce = work->data.header.nNonce & ~0x3FUL;
 
     sha256_ctx ctx;
     sha256_init(&ctx);
@@ -278,7 +278,7 @@ void darkcoin_regenhash(struct work *work)
 
     memcpy(&work->data.header.MinerSignature[33], bufferB, 32);
 
-    ((struct CPokHeader*)pi322)->nNonce = work->data.header.nNonce & ~0x3F;
+    ((struct CPokHeader*)pi322)->nNonce = work->data.header.nNonce & ~0x3FUL;
     memcpy(((struct CPokHeader*)pi322)->MinerSignature, work->data.header.MinerSignature, 65);
 
     sha256_init(&ctx);
