@@ -115,9 +115,11 @@ void mul256(uint32_t c[16], __global const uint32_t *a, const uint32_t b[8])
 {
     uint64_t r = 0;
     uint8_t carry = 0;
+#pragma unroll 8
     for (int i = 0; i < 8; i++)
     {
         r += c[i];
+#pragma unroll
         for (int j = 0; j < i + 1; j++)
         {
             uint64_t rold = r;
@@ -128,9 +130,11 @@ void mul256(uint32_t c[16], __global const uint32_t *a, const uint32_t b[8])
         r = (((uint64_t)carry) << 32) + (r >> 32);
         carry = 0;
     }
+#pragma unroll 8
     for (int i = 8; i < 15; i++)
     {
         r += c[i];
+#pragma unroll
         for (int j = i - 7; j < 8; j++)
         {
             uint64_t rold = r;
@@ -148,9 +152,11 @@ void mul256ng(uint32_t c[16], const uint32_t a[8], const uint32_t b[8])
 {
     uint64_t r = 0;
     uint8_t carry = 0;
+#pragma unroll 8
     for (int i = 0; i < 8; i++)
     {
         r += c[i];
+#pragma unroll
         for (int j = 0; j < i + 1; j++)
         {
             uint64_t rold = r;
@@ -161,9 +167,11 @@ void mul256ng(uint32_t c[16], const uint32_t a[8], const uint32_t b[8])
         r = (((uint64_t)carry) << 32) + (r >> 32);
         carry = 0;
     }
+#pragma unroll 8
     for (int i = 8; i < 15; i++)
     {
         r += c[i];
+#pragma unroll
         for (int j = i - 7; j < 8; j++)
         {
             uint64_t rold = r;
@@ -179,21 +187,20 @@ void mul256ng(uint32_t c[16], const uint32_t a[8], const uint32_t b[8])
 void reduce(uint32_t r[16], const uint32_t a[16])
 {
     const uint32_t disorder[8] = {801750719, 1076732275, 1354194884, 1162945305, 1, 0, 0, 0};
+#pragma unroll 8
     for (int i = 0; i < 8; i++)
         r[i] = a[i];
+#pragma unroll 8
     for (int i = 8; i < 16; i++)
         r[i] = 0;
     mul256ng(r, a + 8, disorder);
 }
 
-void reverse2(uint8_t* p)
+void reverse2(uchar16* p)
 {
-    for (int i = 0; i < 16; i++)
-    {
-        uint8_t t = p[i];
-        p[i] = p[31-i];
-        p[31-i] = t;
-    }
+	uchar16 tmp = p[0];
+	p[0] = p[1].sFEDCBA9876543210;
+	p[1] = tmp.sFEDCBA9876543210;
 }
 
 typedef union {
@@ -338,12 +345,12 @@ __kernel void signature1(__global const unsigned char* block2, __global uint64_t
 
         for (int i = 0; i < 8; i++)
             hh2[i] = SWAP4(hh2[i]);
-        reverse2((uint8_t*)hh2);
+        reverse2((uchar16*)hh2);
         mul256(bufferA, (__global const uint32_t*)kinv, hh2);
         reduce(bufferB, bufferA);
         reduce(bufferA, bufferB);
         reduce(bufferB, bufferA);
-        reverse2((uint8_t*)(bufferB));
+        reverse2((uchar16*)(bufferB));
     }
 
     uint8_t* ps = (uint8_t*)bufferB;
