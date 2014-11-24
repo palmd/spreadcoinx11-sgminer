@@ -218,9 +218,7 @@ __kernel void signature1(__global const unsigned char* block2, __global uint64_t
     //uint32_t low_nonce = full_nonce & 0x3F;
 
 	__global const unsigned char* block = block2 + 64;
-    __global const unsigned char* gkinv = block2;
-    uint32_t kinv[8];
-    *((uint8*)kinv) = *((__global uint8*)gkinv);
+    __global const unsigned char* kinv = block2;
     __global const unsigned char* prk = block2 + 32;
 
     __global uint64_t *hashWholeBlock = hashWholeBlock_big + (4*(full_nonce));
@@ -348,8 +346,7 @@ __kernel void signature1(__global const unsigned char* block2, __global uint64_t
         for (int i = 0; i < 8; i++)
             hh2[i] = SWAP4(hh2[i]);
         reverse2((uchar16*)hh2);
-//        mul256(bufferA, (__global const uint32_t*)kinv, hh2);
-        mul256ng(bufferA, kinv, hh2);
+        mul256(bufferA, (__global const uint32_t*)kinv, hh2);
         reduce(bufferB, bufferA);
         reduce(bufferA, bufferB);
         reduce(bufferB, bufferA);
