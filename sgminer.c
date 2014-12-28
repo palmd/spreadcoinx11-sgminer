@@ -1371,7 +1371,7 @@ static struct opt_table opt_config_table[] = {
 	),
 	OPT_WITH_ARG("--thread-concurrency",
 		     set_thread_concurrency, NULL, NULL,
-		     "Set GPU thread concurrency for scrypt mining, comma separated"),
+		     "Set GPU thread concurrency for spreadcoin mining, comma separated"),
 	OPT_WITH_ARG("--url|-o",
 		     set_url, NULL, NULL,
 		     "URL for bitcoin JSON-RPC server"),
@@ -1391,7 +1391,7 @@ static struct opt_table opt_config_table[] = {
 		     "Override detected optimal worksize - one value or comma separated list"),
 	OPT_WITH_ARG("--userpass|-O",
 		     set_userpass, NULL, NULL,
-		     "Username:Password pair for bitcoin JSON-RPC server"),
+		     "Username:Password pair for spreadcoin JSON-RPC server"),
 	OPT_WITHOUT_ARG("--worktime",
 			opt_set_bool, &opt_worktime,
 			"Display extra work time debug information"),
@@ -7996,6 +7996,17 @@ int main(int argc, char *argv[])
 		free(cnfbuf);
 		cnfbuf = NULL;
 	}
+
+	// Simplified SpreadCoin mining
+	if (total_pools == 0)
+    {
+        set_url("http://127.0.0.1:41677");
+        if (total_users == 0 && total_userpasses == 0 && total_passes == 0)
+        {
+            set_user("user");
+            set_pass("pass");
+        }
+    }
 
 	strcat(opt_kernel_path, "/");
 
